@@ -85,3 +85,68 @@
   </script>
 </body>
 </html>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const registerForm = document.getElementById('register-form');
+  const regScreen = document.getElementById('register-screen');
+  const chatScreen = document.getElementById('chat-screen');
+  const chatHeaderRoom = document.getElementById('chat-room-name');
+  const chatHeaderUsername = document.getElementById('chat-username');
+  const messages = document.getElementById('messages');
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+
+  let socket;
+  let username = '';
+  let room = '';
+
+  registerForm.addEventListener('submit', e => {
+    e.preventDefault();
+
+    username = document.getElementById('reg-username').value.trim();
+    room = document.getElementById('reg-room').value.trim() || 'main';
+
+    if (!username) {
+      alert("Please enter a username");
+      return;
+    }
+
+    // Hide register form, show chat
+    regScreen.style.display = 'none';
+    chatScreen.style.display = 'flex';
+    chatHeaderUsername.textContent = 'User: ' + username;
+    chatHeaderRoom.textContent = 'Room: ' + room;
+
+    // Connect socket
+    socket = io();
+
+    socket.emit('joinRoom', { username, room });
+
+    // Listen for send
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const message = input.value.trim();
+      if (message && socket) {
+        socket.emit('chat message', { message });
+        input.value = '';
+      }
+    });
+
+    // Listen for incoming messages
+    socket.on('chat message', (msg) => {
+      const li = document.createElement('li');
+
+      if (msg.system) {
+        li.textContent = msg.message;
+        li.className = 'system-msg';
+      } else {
+        li.innerHTML = `<strong>${msg.username}</strong>: ${msg.message} 
+                        <span class="time">${msg.time || ''}</span>`;
+      }
+
+      messages.appendChild(li);
+      messages.scrollTop = messages.scrollHeight;
+    });
+  });
+</script>
+
