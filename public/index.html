@@ -2,85 +2,78 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Chat App</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="register-screen" class="center-screen">
-    <div class="register-box">
+  <div class="register-screen">
+    <form id="register-form">
       <h2>Join Chat</h2>
-      <form id="register-form">
-        <input id="reg-username" type="text" placeholder="Username" required />
-        <input id="reg-room" type="text" placeholder="Room (default: main)" />
-        <button type="submit">Enter Chat</button>
-      </form>
-    </div>
+      <input id="reg-username" placeholder="Username" required />
+      <input id="reg-room" placeholder="Room (default: main)" />
+      <button type="submit">Enter Chat</button>
+    </form>
   </div>
 
-  <div id="chat-screen" class="chat-fullscreen" style="display: none;">
+  <div class="chat-screen" style="display: none;">
     <div class="chat-header">
-      <span id="chat-room-name"></span>
-      <span id="chat-username"></span>
+      <span id="chat-room"></span>
+      <span id="chat-user"></span>
     </div>
     <ul id="messages"></ul>
     <form id="form" autocomplete="off">
-      <input id="input" placeholder="Type your message..." />
+      <input id="input" placeholder="Type a message..." />
       <button>Send</button>
     </form>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const registerForm = document.getElementById('register-form');
-    const regScreen = document.getElementById('register-screen');
-    const chatScreen = document.getElementById('chat-screen');
-    const chatRoomName = document.getElementById('chat-room-name');
-    const chatUsername = document.getElementById('chat-username');
-    const messages = document.getElementById('messages');
-    const messageForm = document.getElementById('form');
-    const messageInput = document.getElementById('input');
-
+    const registerForm = document.getElementById("register-form");
+    const regScreen = document.querySelector(".register-screen");
+    const chatScreen = document.querySelector(".chat-screen");
+    const chatRoom = document.getElementById("chat-room");
+    const chatUser = document.getElementById("chat-user");
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+    const messages = document.getElementById("messages");
     let socket;
 
-    registerForm.addEventListener('submit', (e) => {
+    registerForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      const username = document.getElementById('reg-username').value.trim();
-      const room = document.getElementById('reg-room').value.trim() || 'main';
 
-      if (!username) {
-        alert('Please enter a username');
-        return;
-      }
+      const username = document.getElementById("reg-username").value.trim();
+      const room = document.getElementById("reg-room").value.trim() || "main";
 
-      regScreen.style.display = 'none';
-      chatScreen.style.display = 'flex';
-      chatRoomName.textContent = `Room: ${room}`;
-      chatUsername.textContent = `User: ${username}`;
+      if (!username) return alert("Username is required");
+
+      regScreen.style.display = "none";
+      chatScreen.style.display = "flex";
+
+      chatRoom.textContent = "Room: " + room;
+      chatUser.textContent = "User: " + username;
 
       socket = io();
+      socket.emit("joinRoom", { username, room });
 
-      socket.emit('joinRoom', { username, room });
-
-      messageForm.addEventListener('submit', (e) => {
+      form.addEventListener("submit", (e) => {
         e.preventDefault();
-        const message = messageInput.value.trim();
-        if (message) {
-          socket.emit('chat message', { message });
-          messageInput.value = '';
+        const msg = input.value.trim();
+        if (msg && socket) {
+          socket.emit("chat message", { message: msg });
+          input.value = "";
         }
       });
 
-      socket.on('chat message', (msg) => {
-        const li = document.createElement('li');
-
+      socket.on("chat message", (msg) => {
+        const li = document.createElement("li");
         if (msg.system) {
+          li.className = "system-msg";
           li.textContent = msg.message;
-          li.classList.add('system-msg');
         } else {
-          li.innerHTML = `<strong>${msg.username}</strong>: ${msg.message} <span class="msg-time">${msg.time || ''}</span>`;
+          li.innerHTML = `<strong>${msg.username}</strong>: ${msg.message} <span class="msg-time">${msg.time || ""}</span>`;
         }
-
         messages.appendChild(li);
         messages.scrollTop = messages.scrollHeight;
       });
