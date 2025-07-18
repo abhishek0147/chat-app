@@ -9,14 +9,19 @@ const io = new Server(server);
 const HISTORY_FILE = 'chat-history.json';
 
 function loadHistory(room) {
-  let all = {};
-  try { all = JSON.parse(fs.readFileSync(HISTORY_FILE)); } catch {}
-  return all[room] || [];
+  try {
+    const all = JSON.parse(fs.readFileSync(HISTORY_FILE));
+    return all[room] || [];
+  } catch {
+    return [];
+  }
 }
 
 function saveHistory(room, msg) {
   let all = {};
-  try { all = JSON.parse(fs.readFileSync(HISTORY_FILE)); } catch {}
+  try {
+    all = JSON.parse(fs.readFileSync(HISTORY_FILE));
+  } catch {}
   if (!all[room]) all[room] = [];
   all[room].push(msg);
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(all, null, 2));
@@ -31,29 +36,27 @@ io.on('connection', socket => {
     socket.join(room);
 
     const history = loadHistory(room).slice(-50);
-    history.forEach(msg => socket.emit('chat message', msg));
+    history.forEach(m => socket.emit('chat message', m));
 
     socket.to(room).emit('chat message', {
       system: true,
-      message: `🔔 ${socket.username} joined the room.`
+      message: `🔔 ${username} joined the room.`
     });
   });
 
   socket.on('chat message', ({ message }) => {
-    if (!socket.room || !socket.username || !message) return;
-
-    const fullMsg = {
+    if (!message || !socket.username || !socket.room) return;
+    const msgObj = {
       username: socket.username,
       message,
       time: new Date().toLocaleTimeString()
     };
-
-    io.to(socket.room).emit('chat message', fullMsg);
-    saveHistory(socket.room, fullMsg);
+    io.to(socket.room).emit('chat message', msgObj);
+    saveHistory(socket.room, msgObj);
   });
 
   socket.on('disconnect', () => {
-    if (socket.room && socket.username) {
+    if (socket.username && socket.room) {
       socket.to(socket.room).emit('chat message', {
         system: true,
         message: `⚠️ ${socket.username} left the room.`
@@ -63,4 +66,4 @@ io.on('connection', socket => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`✅ Server is live at http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
