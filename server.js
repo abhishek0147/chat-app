@@ -8,7 +8,6 @@ const io = new Server(server);
 
 const HISTORY_FILE = 'chat-history.json';
 
-// Helper to load and save chat history
 function loadHistory(room) {
   let all = {};
   try { all = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8')); } catch {}
@@ -22,38 +21,37 @@ function saveHistory(room, message) {
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(all));
 }
 
-// Serve frontend from the "public" folder
 app.use(express.static(__dirname + '/public'));
 
 io.on('connection', (socket) => {
-  socket.on('joinRoom', (room) => {
+  socket.on('joinRoom', ({ username, room }) => {
     socket.join(room);
+    socket.username = username;
     socket.room = room;
 
-    // Send recent chat history on join
+    // Send last 50 messages to the new user
     const history = loadHistory(room).slice(-50);
     history.forEach(msg => socket.emit('chat message', msg));
 
-    socket.to(room).emit('chat message', `🔔 Someone joined the room: ${room}`);
+    socket.to(room).emit('chat message', { system: true, message: `🔔 ${username} joined the room.` });
   });
 
-  socket.on('chat message', (msg) => {
+  socket.on('chat message', (msgObj) => {
     if (socket.room) {
-      io.to(socket.room).emit('chat message', msg);
-      saveHistory(socket.room, msg);
+      const enrichedMsg = { ...msgObj, username: socket.username, time: new Date().toLocaleTimeString() };
+      io.to(socket.room).emit('chat message', enrichedMsg);
+      saveHistory(socket.room, enrichedMsg);
     }
   });
 
   socket.on('disconnect', () => {
-    if (socket.room) {
-      socket.to(socket.room).emit('chat message', '⚠️ A user has left the room.');
+    if (socket.room && socket.username) {
+      socket.to(socket.room).emit('chat message', { system: true, message: `⚠️ ${socket.username} has left the room.` });
     }
   });
 });
 
-// Use dynamic port for Vercel or default to 3000
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
-
