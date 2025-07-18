@@ -1,90 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Modern Chat Room</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <div id="register-screen" class="center-screen">
-    <div class="register-box">
-      <h2>Join Chat</h2>
-      <form id="register-form">
-        <input type="text" id="reg-username" placeholder="Your name" maxlength="20" required />
-        <input type="text" id="reg-room" placeholder="Room name" maxlength="20" />
-        <button type="submit">Enter Chat</button>
-      </form>
-    </div>
-  </div>
-
-  <div id="chat-screen" class="chat-fullscreen" style="display:none;">
-    <div class="chat-header">
-      <span id="chat-room-name"></span>
-      <span id="chat-username"></span>
-    </div>
-    <ul id="messages"></ul>
-    <form id="form" autocomplete="off">
-      <input id="input" placeholder="Type your message…" />
-      <button type="submit">Send</button>
-    </form>
-  </div>
-
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const regForm = document.getElementById('register-form');
-    const regScreen = document.getElementById('register-screen');
-    const chatScreen = document.getElementById('chat-screen');
-    const usernameEl = document.getElementById('chat-username');
-    const roomEl = document.getElementById('chat-room-name');
-    const messages = document.getElementById('messages');
-    const input = document.getElementById('input');
-    const form = document.getElementById('form');
-
-    let socket;
-
-    regForm.addEventListener('submit', e => {
-      e.preventDefault();
-      const username = document.getElementById('reg-username').value.trim();
-      let room = document.getElementById('reg-room').value.trim().replace(/\s+/g, "_");
-      if (!username) return;
-
-      if (!room) room = "main";
-
-      regScreen.style.display = "none";
-      chatScreen.style.display = "flex";
-      usernameEl.textContent = "User: " + username;
-      roomEl.textContent = "Room: " + room;
-
-      socket = io();
-
-      socket.emit('joinRoom', { username, room });
-
-      form.addEventListener('submit', e => {
-        e.preventDefault();
-        if (input.value && socket) {
-          socket.emit('chat message', { message: input.value });
-          input.value = '';
-        }
-      });
-
-      socket.on('chat message', msg => {
-        const li = document.createElement('li');
-        if (msg.system) {
-          li.textContent = msg.message;
-          li.className = "system-msg";
-        } else {
-          li.innerHTML = `
-            <strong>${msg.username}</strong>: ${msg.message} 
-            <span class="time">${msg.time || ""}</span>`;
-        }
-        messages.appendChild(li);
-        messages.scrollTop = messages.scrollHeight;
-      });
-    });
-  </script>
-</body>
-</html>
 <script src="/socket.io/socket.io.js"></script>
 <script>
   const registerForm = document.getElementById('register-form');
@@ -95,58 +8,52 @@
   const messages = document.getElementById('messages');
   const form = document.getElementById('form');
   const input = document.getElementById('input');
-
   let socket;
-  let username = '';
-  let room = '';
 
-  registerForm.addEventListener('submit', e => {
+  registerForm.addEventListener('submit', (e) => {
     e.preventDefault();
 
-    username = document.getElementById('reg-username').value.trim();
-    room = document.getElementById('reg-room').value.trim() || 'main';
+    const usernameInput = document.getElementById('reg-username').value.trim();
+    const roomInput = document.getElementById('reg-room').value.trim() || 'main';
 
-    if (!username) {
-      alert("Please enter a username");
+    if (!usernameInput) {
+      alert('Enter a valid username');
       return;
     }
 
-    // Hide register form, show chat
     regScreen.style.display = 'none';
     chatScreen.style.display = 'flex';
-    chatHeaderUsername.textContent = 'User: ' + username;
-    chatHeaderRoom.textContent = 'Room: ' + room;
+    chatHeaderUsername.textContent = 'User: ' + usernameInput;
+    chatHeaderRoom.textContent = 'Room: ' + roomInput;
 
-    // Connect socket
     socket = io();
 
-    socket.emit('joinRoom', { username, room });
-
-    // Listen for send
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const message = input.value.trim();
-      if (message && socket) {
-        socket.emit('chat message', { message });
-        input.value = '';
-      }
+    socket.emit('joinRoom', {
+      username: usernameInput,
+      room: roomInput
     });
 
-    // Listen for incoming messages
     socket.on('chat message', (msg) => {
       const li = document.createElement('li');
 
       if (msg.system) {
         li.textContent = msg.message;
-        li.className = 'system-msg';
+        li.className = "system-msg";
       } else {
-        li.innerHTML = `<strong>${msg.username}</strong>: ${msg.message} 
-                        <span class="time">${msg.time || ''}</span>`;
+        li.innerHTML = `<strong>${msg.username}</strong>: ${msg.message} <span class="time">${msg.time}</span>`;
       }
 
       messages.appendChild(li);
       messages.scrollTop = messages.scrollHeight;
     });
+
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const text = input.value.trim();
+      if (text) {
+        socket.emit('chat message', { message: text });
+        input.value = '';
+      }
+    });
   });
 </script>
-
