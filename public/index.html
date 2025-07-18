@@ -3,19 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simple Chat Room</title>
+  <title>Modern Chat Room</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Optional: Google Fonts for style, uncomment if needed -->
+  <!-- <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;700&display=swap" rel="stylesheet"> -->
 </head>
 <body>
   <div class="chat-container">
-    <h2>Simple Chat Room</h2>
+    <h2>🚀 Modern Chat Room</h2>
     <ul id="messages"></ul>
     <form id="form" autocomplete="off">
-      <input id="input" placeholder="Type your message..." />
+      <input id="input" placeholder="Type your message…" />
       <button type="submit">Send</button>
     </form>
   </div>
   <script src="/socket.io/socket.io.js"></script>
-  <script src="script.js"></script>
+  <script>
+    // ===== Client-side script.js logic (inline for simplicity) =====
+
+    const socket = io();
+
+    // Prompt for username
+    let username = '';
+    while (!username || !username.trim()) {
+      username = prompt("Enter your username:") || '';
+    }
+
+    // Support user-created rooms via query or prompt
+    const urlParams = new URLSearchParams(window.location.search);
+    let room = urlParams.get('room');
+    if (!room) {
+      room = prompt("Create or enter your room name (letters & numbers):") || 'main';
+      room = room.replace(/\s+/g, '_');
+      window.location.search = '?room=' + encodeURIComponent(room);
+    }
+    socket.emit('joinRoom', room);
+
+    const form = document.getElementById('form');
+    const input = document.getElementById('input');
+    const messages = document.getElementById('messages');
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (input.value) {
+        socket.emit('chat message', { username, message: input.value });
+        input.value = '';
+      }
+    });
+
+    socket.on('chat message', function(msg) {
+      const item = document.createElement('li');
+      if (typeof msg === 'string') {
+        item.textContent = msg;
+        item.classList.add('system-msg');
+      } else {
+        item.innerHTML = `<strong>${msg.username}</strong>: ${msg.message}`;
+      }
+      messages.appendChild(item);
+      messages.scrollTop = messages.scrollHeight;
+    });
+  </script>
 </body>
 </html>
