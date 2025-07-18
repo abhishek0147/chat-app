@@ -1,7 +1,7 @@
 {
   "name": "chat-app",
   "version": "1.0.0",
-  "description": "A modern Node.js Socket.IO chat app",
+  "description": "A real-time chat app using Node.js and Socket.IO",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -9,5 +9,6 @@
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.7.2"
-  }
+  },
+  "license": "MIT"
 }
