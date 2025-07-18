@@ -1,68 +1,87 @@
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  const registerScreen = document.getElementById('register-screen');
-  const chatScreen = document.getElementById('chat-screen');
-  const registerForm = document.getElementById('register-form');
-  const regUsername = document.getElementById('reg-username');
-  const regRoom = document.getElementById('reg-room');
-  const chatRoomName = document.getElementById('chat-room-name');
-  const chatUsername = document.getElementById('chat-username');
-  const form = document.getElementById('form');
-  const input = document.getElementById('input');
-  const messages = document.getElementById('messages');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Modern Chat Room</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="register-screen" class="center-screen">
+    <div class="register-box">
+      <h2>Join Chat</h2>
+      <form id="register-form">
+        <input type="text" id="reg-username" placeholder="Your name" maxlength="20" required />
+        <input type="text" id="reg-room" placeholder="Room name" maxlength="20" />
+        <button type="submit">Enter Chat</button>
+      </form>
+    </div>
+  </div>
 
-  let username = '';
-  let room = '';
-  let socket = null;
+  <div id="chat-screen" class="chat-fullscreen" style="display:none;">
+    <div class="chat-header">
+      <span id="chat-room-name"></span>
+      <span id="chat-username"></span>
+    </div>
+    <ul id="messages"></ul>
+    <form id="form" autocomplete="off">
+      <input id="input" placeholder="Type your message…" />
+      <button type="submit">Send</button>
+    </form>
+  </div>
 
-  // Register submit event
-  registerForm.addEventListener('submit', (e) => {
-    e.preventDefault();
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const regForm = document.getElementById('register-form');
+    const regScreen = document.getElementById('register-screen');
+    const chatScreen = document.getElementById('chat-screen');
+    const usernameEl = document.getElementById('chat-username');
+    const roomEl = document.getElementById('chat-room-name');
+    const messages = document.getElementById('messages');
+    const input = document.getElementById('input');
+    const form = document.getElementById('form');
 
-    username = regUsername.value.trim();
-    room = regRoom.value.trim().replace(/\s+/g, '_') || 'main';
+    let socket;
 
-    if (!username) {
-      alert("Please enter a username");
-      return;
-    }
+    regForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const username = document.getElementById('reg-username').value.trim();
+      let room = document.getElementById('reg-room').value.trim().replace(/\s+/g, "_");
+      if (!username) return;
 
-    // Hide register, show chat
-    registerScreen.style.display = "none";
-    chatScreen.style.display = "flex";
-    chatUsername.textContent = `User: ${username}`;
-    chatRoomName.textContent = `Room: ${room}`;
+      if (!room) room = "main";
 
-    // Connect socket
-    socket = io();
-    socket.emit('joinRoom', { username, room });
+      regScreen.style.display = "none";
+      chatScreen.style.display = "flex";
+      usernameEl.textContent = "User: " + username;
+      roomEl.textContent = "Room: " + room;
 
-    // Attach form submit inside the event listener to ensure it exists
-    form.addEventListener('submit', function(event) {
-      event.preventDefault();
-      if (input.value && socket) {
-        const trimmed = input.value.trim();
-        if (trimmed.length > 0) {
-          socket.emit('chat message', { message: trimmed });
+      socket = io();
+
+      socket.emit('joinRoom', { username, room });
+
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        if (input.value && socket) {
+          socket.emit('chat message', { message: input.value });
+          input.value = '';
         }
-        input.value = '';
-      }
+      });
+
+      socket.on('chat message', msg => {
+        const li = document.createElement('li');
+        if (msg.system) {
+          li.textContent = msg.message;
+          li.className = "system-msg";
+        } else {
+          li.innerHTML = `
+            <strong>${msg.username}</strong>: ${msg.message} 
+            <span class="time">${msg.time || ""}</span>`;
+        }
+        messages.appendChild(li);
+        messages.scrollTop = messages.scrollHeight;
+      });
     });
-
-    socket.on('chat message', function(msg) {
-      const item = document.createElement('li');
-
-      if (msg.system) {
-        item.textContent = msg.message;
-        item.className = "system-msg";
-      } else {
-        item.innerHTML = `<span class="msg-username">${msg.username || "anon"}:</span> 
-                          <span class="msg-content">${msg.message}</span> 
-                          <span class="msg-time">${msg.time || ''}</span>`;
-      }
-
-      messages.appendChild(item);
-      messages.scrollTop = messages.scrollHeight;
-    });
-  });
-</script>
+  </script>
+</body>
+</html>
