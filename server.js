@@ -5,10 +5,8 @@ const app = express();
 const server = http.createServer(app);
 const { Server } = require('socket.io');
 const io = new Server(server);
-
 const HISTORY_FILE = 'chat-history.json';
 
-// Load and Save History
 function loadHistory(room) {
   let all = {};
   try { all = JSON.parse(fs.readFileSync(HISTORY_FILE)); } catch {}
@@ -25,7 +23,7 @@ function saveHistory(room, msg) {
 
 app.use(express.static(__dirname + '/public'));
 
-io.on('connection', socket => {
+io.on('connection', (socket) => {
   socket.on('joinRoom', ({ username, room }) => {
     socket.join(room);
     socket.username = username;
@@ -34,26 +32,35 @@ io.on('connection', socket => {
     const history = loadHistory(room).slice(-50);
     history.forEach(m => socket.emit('chat message', m));
 
-    socket.to(room).emit('chat message', { system: true, message: `🔔 ${username} joined the room.` });
+    // send system message to others in room
+    socket.to(room).emit('chat message', {
+      system: true,
+      message: `🔔 ${username} joined the room.`
+    });
   });
 
-  socket.on('chat message', msg => {
+  socket.on('chat message', (msg) => {
     if (!socket.room || !socket.username) return;
-    const fullMessage = {
+
+    const fullMsg = {
       username: socket.username,
       message: msg.message,
       time: new Date().toLocaleTimeString()
     };
-    io.to(socket.room).emit('chat message', fullMessage);
-    saveHistory(socket.room, fullMessage);
+
+    io.to(socket.room).emit('chat message', fullMsg);
+    saveHistory(socket.room, fullMsg);
   });
 
   socket.on('disconnect', () => {
     if (socket.room && socket.username) {
-      socket.to(socket.room).emit('chat message', { system: true, message: `⚠️ ${socket.username} left the chat.` });
+      socket.to(socket.room).emit('chat message', {
+        system: true,
+        message: `⚠️ ${socket.username} left the chat.`
+      });
     }
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`✅ Server running at http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`✅ Server running on ${PORT}`));
