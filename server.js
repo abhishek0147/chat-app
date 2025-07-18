@@ -1,14 +1,13 @@
 const express = require("express");
-const app = express();
 const http = require("http");
 const fs = require("fs");
+const app = express();
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
 
 const HISTORY_FILE = "chat-history.json";
 
-// Load and save history
 function loadHistory(room) {
   try {
     const all = JSON.parse(fs.readFileSync(HISTORY_FILE));
@@ -28,10 +27,8 @@ function saveHistory(room, msg) {
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(all, null, 2));
 }
 
-// Serve static files
 app.use(express.static(__dirname + "/public"));
 
-// Handle socket connections
 io.on("connection", (socket) => {
   socket.on("joinRoom", ({ username, room }) => {
     socket.username = username;
@@ -71,4 +68,4 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
