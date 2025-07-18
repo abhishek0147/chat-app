@@ -1,13 +1,14 @@
-const express = require('express');
-const http = require('http');
-const fs = require('fs');
+const express = require("express");
 const app = express();
+const http = require("http");
+const fs = require("fs");
 const server = http.createServer(app);
-const { Server } = require('socket.io');
+const { Server } = require("socket.io");
 const io = new Server(server);
 
-const HISTORY_FILE = 'chat-history.json';
+const HISTORY_FILE = "chat-history.json";
 
+// Load and save history
 function loadHistory(room) {
   try {
     const all = JSON.parse(fs.readFileSync(HISTORY_FILE));
@@ -27,39 +28,43 @@ function saveHistory(room, msg) {
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(all, null, 2));
 }
 
-app.use(express.static(__dirname + '/public'));
+// Serve static files
+app.use(express.static(__dirname + "/public"));
 
-io.on('connection', socket => {
-  socket.on('joinRoom', ({ username, room }) => {
+// Handle socket connections
+io.on("connection", (socket) => {
+  socket.on("joinRoom", ({ username, room }) => {
     socket.username = username;
     socket.room = room;
     socket.join(room);
 
     const history = loadHistory(room).slice(-50);
-    history.forEach(m => socket.emit('chat message', m));
+    history.forEach((m) => socket.emit("chat message", m));
 
-    socket.to(room).emit('chat message', {
+    socket.to(room).emit("chat message", {
       system: true,
-      message: `🔔 ${username} joined the room.`
+      message: `🔔 ${username} joined the room.`,
     });
   });
 
-  socket.on('chat message', ({ message }) => {
+  socket.on("chat message", ({ message }) => {
     if (!message || !socket.username || !socket.room) return;
-    const msgObj = {
+
+    const msg = {
       username: socket.username,
       message,
-      time: new Date().toLocaleTimeString()
+      time: new Date().toLocaleTimeString(),
     };
-    io.to(socket.room).emit('chat message', msgObj);
-    saveHistory(socket.room, msgObj);
+
+    io.to(socket.room).emit("chat message", msg);
+    saveHistory(socket.room, msg);
   });
 
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
     if (socket.username && socket.room) {
-      socket.to(socket.room).emit('chat message', {
+      socket.to(socket.room).emit("chat message", {
         system: true,
-        message: `⚠️ ${socket.username} left the room.`
+        message: `⚠️ ${socket.username} left the room.`,
       });
     }
   });
