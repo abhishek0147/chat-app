@@ -8,50 +8,52 @@ const io = new Server(server);
 
 const HISTORY_FILE = 'chat-history.json';
 
+// Load and Save History
 function loadHistory(room) {
   let all = {};
-  try { all = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8')); } catch {}
+  try { all = JSON.parse(fs.readFileSync(HISTORY_FILE)); } catch {}
   return all[room] || [];
 }
-function saveHistory(room, message) {
+
+function saveHistory(room, msg) {
   let all = {};
-  try { all = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8')); } catch {}
+  try { all = JSON.parse(fs.readFileSync(HISTORY_FILE)); } catch {}
   if (!all[room]) all[room] = [];
-  all[room].push(message);
-  fs.writeFileSync(HISTORY_FILE, JSON.stringify(all));
+  all[room].push(msg);
+  fs.writeFileSync(HISTORY_FILE, JSON.stringify(all, null, 2));
 }
 
 app.use(express.static(__dirname + '/public'));
 
-io.on('connection', (socket) => {
+io.on('connection', socket => {
   socket.on('joinRoom', ({ username, room }) => {
     socket.join(room);
     socket.username = username;
     socket.room = room;
 
-    // Send last 50 messages to the new user
     const history = loadHistory(room).slice(-50);
-    history.forEach(msg => socket.emit('chat message', msg));
+    history.forEach(m => socket.emit('chat message', m));
 
     socket.to(room).emit('chat message', { system: true, message: `🔔 ${username} joined the room.` });
   });
 
-  socket.on('chat message', (msgObj) => {
-    if (socket.room) {
-      const enrichedMsg = { ...msgObj, username: socket.username, time: new Date().toLocaleTimeString() };
-      io.to(socket.room).emit('chat message', enrichedMsg);
-      saveHistory(socket.room, enrichedMsg);
-    }
+  socket.on('chat message', msg => {
+    if (!socket.room || !socket.username) return;
+    const fullMessage = {
+      username: socket.username,
+      message: msg.message,
+      time: new Date().toLocaleTimeString()
+    };
+    io.to(socket.room).emit('chat message', fullMessage);
+    saveHistory(socket.room, fullMessage);
   });
 
   socket.on('disconnect', () => {
     if (socket.room && socket.username) {
-      socket.to(socket.room).emit('chat message', { system: true, message: `⚠️ ${socket.username} has left the room.` });
+      socket.to(socket.room).emit('chat message', { system: true, message: `⚠️ ${socket.username} left the chat.` });
     }
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`✅ Server running at http://localhost:${PORT}`));
