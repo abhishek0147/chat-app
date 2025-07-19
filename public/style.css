@@ -5,7 +5,6 @@ body, html {
   height: 100%;
   background: #f0f2f5;
 }
-
 .register-screen, .chat-screen {
   display: flex;
   flex-direction: column;
@@ -13,14 +12,12 @@ body, html {
   justify-content: center;
   height: 100vh;
 }
-
 #register-form {
   background: white;
   padding: 30px;
   border-radius: 10px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.1);
 }
-
 #register-form input, #register-form button {
   display: block;
   width: 100%;
@@ -28,11 +25,9 @@ body, html {
   padding: 12px;
   margin-bottom: 10px;
 }
-
 .chat-screen {
   flex-direction: column;
 }
-
 .chat-header {
   background: #4e54c8;
   color: white;
@@ -42,7 +37,6 @@ body, html {
   justify-content: space-between;
   font-weight: bold;
 }
-
 #messages {
   flex: 1;
   width: 90%;
@@ -52,7 +46,6 @@ body, html {
   list-style: none;
   padding: 0;
 }
-
 #messages li {
   padding: 10px;
   margin: 10px 0;
@@ -60,26 +53,22 @@ body, html {
   border-radius: 6px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
-
 .system-msg {
   font-style: italic;
   background: #fffbd1;
   color: #895c00;
 }
-
 form {
   width: 90%;
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
 }
-
 #input {
   flex: 1;
   padding: 12px;
   font-size: 16px;
 }
-
 button {
   background: #4e54c8;
   color: white;
@@ -88,4 +77,9 @@ button {
   font-weight: bold;
   border-radius: 4px;
   cursor: pointer;
+}
+.msg-time {
+  color: #aaa;
+  font-size: 0.9em;
+  margin-left: 8px;
 }
