@@ -8,6 +8,7 @@ const io = new Server(server);
 
 const HISTORY_FILE = "chat-history.json";
 
+// Load and save chat history
 function loadHistory(room) {
   try {
     const all = JSON.parse(fs.readFileSync(HISTORY_FILE));
@@ -67,5 +68,6 @@ io.on("connection", (socket) => {
   });
 });
 
+// ✅ REQUIRED for Render
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
