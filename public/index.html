@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Chat App</title>
+  <title>Firebase Chat App</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -28,7 +28,23 @@
     </form>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script>
+    // ⬇️ Replace ONLY the config below with your Firebase project's config!
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+  </script>
   <script>
     const registerForm = document.getElementById("register-form");
     const regScreen = document.querySelector(".register-screen");
@@ -38,16 +54,13 @@
     const messageForm = document.getElementById("form");
     const input = document.getElementById("input");
     const messages = document.getElementById("messages");
+    let username, room;
+    let roomRef;
 
-    let socket;
-
-    // ✅ 1. Register form handler only once
     registerForm.addEventListener("submit", (e) => {
       e.preventDefault();
-
-      const username = document.getElementById("reg-username").value.trim();
-      const room = document.getElementById("reg-room").value.trim() || "main";
-
+      username = document.getElementById("reg-username").value.trim();
+      room = document.getElementById("reg-room").value.trim() || "main";
       if (!username) return;
 
       regScreen.style.display = "none";
@@ -55,30 +68,49 @@
       chatRoomDisplay.textContent = "Room: " + room;
       chatUsernameDisplay.textContent = "User: " + username;
 
-      socket = io();
-      socket.emit("joinRoom", { username, room });
+      roomRef = db.ref(`rooms/${room}/messages`);
+      messages.innerHTML = "";
 
-      // ✅ Attach this ONCE
-      socket.on("chat message", (msg) => {
-        const li = document.createElement("li");
-        li.className = msg.system ? "system-msg" : "";
-        li.innerHTML = msg.system
-          ? msg.message
-          : `<strong>${msg.username}</strong>: ${msg.message} <span class="msg-time">${msg.time}</span>`;
-        messages.appendChild(li);
-        messages.scrollTop = messages.scrollHeight;
+      // Remove any previous listeners before adding a new one
+      roomRef.off();
+      roomRef.limitToLast(50).on("child_added", snapshot => {
+        const msg = snapshot.val();
+        renderMessage(msg);
+      });
+
+      // Show join system message
+      roomRef.push({
+        system: true,
+        message: `🔔 ${username} joined the room.`,
+        time: new Date().toLocaleTimeString()
       });
     });
 
-    // ✅ 2. Message send handler (SEPARATE and GLOBAL)
     messageForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const text = input.value.trim();
-      if (text && socket) {
-        socket.emit("chat message", { message: text });
+      if (text && username && roomRef) {
+        roomRef.push({
+          username,
+          message: text,
+          time: new Date().toLocaleTimeString()
+        });
         input.value = "";
       }
     });
+
+    function renderMessage(msg) {
+      const li = document.createElement("li");
+      if (msg.system) {
+        li.className = "system-msg";
+        li.textContent = msg.message;
+      } else {
+        li.innerHTML =
+          `<strong>${msg.username}</strong>: ${msg.message} <span class="msg-time">${msg.time || ""}</span>`;
+      }
+      messages.appendChild(li);
+      messages.scrollTop = messages.scrollHeight;
+    }
   </script>
 </body>
 </html>
