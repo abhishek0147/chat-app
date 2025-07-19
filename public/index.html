@@ -32,13 +32,13 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script>
-    // Replace only this object with your actual Firebase config (already provided previously)
+    // Your corrected Firebase config:
     const firebaseConfig = {
       apiKey: "AIzaSyC2CgKMqAqIc2_LsmLv7h9SeGH_P3iY3Lw",
       authDomain: "chat-app-b8150.firebaseapp.com",
       databaseURL: "https://chat-app-b8150-default-rtdb.firebaseio.com",
       projectId: "chat-app-b8150",
-      storageBucket: "chat-app-b8150.firebasestorage.app",
+      storageBucket: "chat-app-b8150.appspot.com",  // Corrected from .firebasestorage.app
       messagingSenderId: "558501909388",
       appId: "1:558501909388:web:3bc5aece4f56cd7d43fca9",
       measurementId: "G-8S9BHZ9R0X"
@@ -72,8 +72,7 @@
       roomRef = db.ref(`rooms/${room}/messages`);
       messages.innerHTML = "";
 
-      // Remove previous listeners before adding a new one
-      roomRef.off();
+      roomRef.off(); // Remove old listeners
       roomRef.limitToLast(50).on("child_added", snapshot => {
         const msg = snapshot.val();
         renderMessage(msg);
