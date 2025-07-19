@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -16,7 +16,7 @@
     </form>
   </div>
 
-  <div class="chat-screen" style="display:none;">
+  <div class="chat-screen" style="display: none;">
     <div class="chat-header">
       <span id="chat-room"></span>
       <span id="chat-username"></span>
@@ -24,7 +24,7 @@
     <ul id="messages"></ul>
     <form id="form" autocomplete="off">
       <input id="input" placeholder="Type your message..." />
-      <button>Send</button>
+      <button type="submit">Send</button>
     </form>
   </div>
 
@@ -33,47 +33,51 @@
     const registerForm = document.getElementById("register-form");
     const regScreen = document.querySelector(".register-screen");
     const chatScreen = document.querySelector(".chat-screen");
-    const chatRoom = document.getElementById("chat-room");
-    const chatUsername = document.getElementById("chat-username");
-    const form = document.getElementById("form");
+    const chatRoomDisplay = document.getElementById("chat-room");
+    const chatUsernameDisplay = document.getElementById("chat-username");
+    const messageForm = document.getElementById("form");
     const input = document.getElementById("input");
     const messages = document.getElementById("messages");
+
     let socket;
 
+    // ✅ 1. Register form handler only once
     registerForm.addEventListener("submit", (e) => {
       e.preventDefault();
+
       const username = document.getElementById("reg-username").value.trim();
       const room = document.getElementById("reg-room").value.trim() || "main";
+
       if (!username) return;
 
       regScreen.style.display = "none";
       chatScreen.style.display = "flex";
-      chatRoom.textContent = "Room: " + room;
-      chatUsername.textContent = "User: " + username;
+      chatRoomDisplay.textContent = "Room: " + room;
+      chatUsernameDisplay.textContent = "User: " + username;
 
       socket = io();
       socket.emit("joinRoom", { username, room });
 
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const msg = input.value.trim();
-        if (msg) {
-          socket.emit("chat message", { message: msg });
-          input.value = "";
-        }
-      });
-
+      // ✅ Attach this ONCE
       socket.on("chat message", (msg) => {
         const li = document.createElement("li");
-        if (msg.system) {
-          li.className = "system-msg";
-          li.textContent = msg.message;
-        } else {
-          li.innerHTML = `<strong>${msg.username}</strong>: ${msg.message} <span class="msg-time">${msg.time}</span>`;
-        }
+        li.className = msg.system ? "system-msg" : "";
+        li.innerHTML = msg.system
+          ? msg.message
+          : `<strong>${msg.username}</strong>: ${msg.message} <span class="msg-time">${msg.time}</span>`;
         messages.appendChild(li);
         messages.scrollTop = messages.scrollHeight;
       });
+    });
+
+    // ✅ 2. Message send handler (SEPARATE and GLOBAL)
+    messageForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (text && socket) {
+        socket.emit("chat message", { message: text });
+        input.value = "";
+      }
     });
   </script>
 </body>
