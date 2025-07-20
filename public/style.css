@@ -5,33 +5,13 @@ body, html {
   height: 100%;
   background: #f0f2f5;
 }
-.auth-screen, .register-screen, .chat-screen {
+.register-screen, .chat-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100vh;
 }
-.auth-box {
-  background: white;
-  padding: 40px 32px;
-  border-radius: 10px;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.16);
-  text-align: center;
-}
-.auth-box button {
-  width: 90%;
-  padding: 14px;
-  margin: 8px 0;
-  border-radius: 6px;
-  border: none;
-  font-size: 1em;
-  font-weight: bold;
-  cursor: pointer;
-  background: #4e54c8;
-  color: white;
-}
-.auth-box button:hover { background: #3440a1; }
 #register-form {
   background: white;
   padding: 30px;
@@ -54,17 +34,12 @@ body, html {
   padding: 16px;
   width: 100%;
   display: flex;
-  align-items: center;
   justify-content: space-between;
   font-weight: bold;
-}
-#user-presence {
-  font-weight: normal;
 }
 #messages {
   flex: 1;
   width: 90%;
-  max-width: 700px;
   max-height: 60vh;
   margin: 16px 0;
   overflow-y: auto;
@@ -72,21 +47,19 @@ body, html {
   padding: 0;
 }
 #messages li {
-  padding: 10px 8px 10px 8px;
+  padding: 10px;
   margin: 10px 0;
   background: white;
   border-radius: 6px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  position: relative;
 }
 .system-msg {
   font-style: italic;
-  background: #fffbd1 !important;
+  background: #fffbd1;
   color: #895c00;
 }
 form {
   width: 90%;
-  max-width: 700px;
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
@@ -109,22 +82,4 @@ button {
   color: #aaa;
   font-size: 0.9em;
   margin-left: 8px;
-}
-.msg-btn {
-  background: none;
-  border: none;
-  color: #888;
-  font-size: 1.2em;
-  cursor: pointer;
-  margin-right: 4px;
-  vertical-align: middle;
-  outline: none;
-  padding: 2px 4px;
-}
-.msg-btn:hover {
-  color: #ff7182;
-}
-@media (max-width: 470px) {
-  .chat-header, form { flex-direction: column; gap: 6px; align-items: flex-start;}
-  #messages { max-width: 97vw; }
 }
