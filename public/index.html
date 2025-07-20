@@ -43,7 +43,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script>
-    // Your fixed Firebase config:
     const firebaseConfig = {
       apiKey: "AIzaSyC2CgKMqAqIc2_LsmLv7h9SeGH_P3iY3Lw",
       authDomain: "chat-app-b8150.firebaseapp.com",
@@ -59,7 +58,7 @@
     const auth = firebase.auth();
   </script>
   <script>
-    // ------ DOM + State ------
+    // DOM Elements
     const authScreen = document.querySelector(".auth-screen");
     const registerScreen = document.querySelector(".register-screen");
     const chatScreen = document.querySelector(".chat-screen");
@@ -72,21 +71,24 @@
     const input = document.getElementById("input");
     const messages = document.getElementById("messages");
     const signoutBtn = document.getElementById("signout-btn");
+
     let user, room, roomRef, roomPresenceRef, messagesListener, presenceListener;
 
-    // ------ AUTH ------
+    // AUTH UI
     document.getElementById("google-auth-btn").onclick = function () {
       const provider = new firebase.auth.GoogleAuthProvider();
       firebase.auth().signInWithPopup(provider).catch(e => alert(e.message));
     };
     document.getElementById("anon-auth-btn").onclick = function () {
       firebase.auth().signInAnonymously().catch(e => alert(e.message));
-    }; 
+    };
     signoutBtn.onclick = function() {
       if (user && room && roomPresenceRef) roomPresenceRef.child(user.uid).remove();
       auth.signOut();
       location.reload();
     };
+
+    // Show register screen after authentication
     auth.onAuthStateChanged(function(u) {
       if (u) {
         user = u;
@@ -101,7 +103,7 @@
       }
     });
 
-    // ------ JOIN ROOM ------
+    // Room join
     registerForm.addEventListener("submit", (e) => {
       e.preventDefault();
       room = roomInput.value.trim() || "main";
@@ -111,15 +113,18 @@
       chatUsernameDisplay.textContent = "User: " + (
         user.displayName || user.email || "Anonymous"
       );
+
+      // Set up room and presence
       roomRef = db.ref(`rooms/${room}/messages`);
       roomPresenceRef = db.ref(`rooms/${room}/presence`);
       messages.innerHTML = "";
-      // Presence
+
+      // Update presence & listeners
       updatePresence();
       listenPresence();
-      // Chat
       listenMessages();
-      // System join message
+
+      // Send join system message
       roomRef.push({
         system: true,
         message: `🔔 ${chatUsernameDisplay.textContent} joined the room.`,
@@ -127,7 +132,7 @@
       });
     });
 
-    // ------ SEND MESSAGE ------
+    // Send a message
     messageForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const text = input.value.trim();
@@ -142,85 +147,98 @@
       }
     });
 
-    // ------ PRESENCE ------
+    // Presence: Update on disconnect
     function updatePresence() {
       if (user && room && roomPresenceRef) {
-        const presenceRef = roomPresenceRef.child(user.uid);
-        presenceRef.set({
+        const presenceUserRef = roomPresenceRef.child(user.uid);
+        presenceUserRef.set({
           displayName: user.displayName || user.email || "Anonymous",
           lastActive: firebase.database.ServerValue.TIMESTAMP
         });
-        presenceRef.onDisconnect().remove();
+        presenceUserRef.onDisconnect().remove();
       }
     }
+
+    // Listen for presence changes
     function listenPresence() {
-      if (presenceListener && typeof presenceListener === "function") {
-        roomPresenceRef.off("value", presenceListener);
+      if (presenceListener && typeof presenceListener === 'function') {
+        roomPresenceRef.off('value', presenceListener);
       }
-      presenceListener = roomPresenceRef.on("value", snap => {
+      presenceListener = roomPresenceRef.on('value', snap => {
         const users = [];
         snap.forEach(child => users.push(child.val().displayName));
         userPresenceDisplay.textContent =
-          users.length ? `${users.length} online: ${users.join(", ")}` : "No users online";
+          users.length
+            ? `${users.length} online: ${users.join(', ')}`
+            : "No users online";
       });
     }
 
-    // ------ REALTIME CHAT ------
+    // Listen for chat messages (with editing/deleting features)
     function listenMessages() {
-      if (messagesListener && typeof messagesListener === "function") {
-        roomRef.off("child_added", messagesListener);
-        roomRef.off("child_changed", messagesListener);
-        roomRef.off("child_removed", messagesListener);
+      if (messagesListener && typeof messagesListener === 'function') {
+        roomRef.off('child_added', messagesListener);
+        roomRef.off('child_changed', messagesListener);
+        roomRef.off('child_removed', messagesListener);
       }
       messages.innerHTML = "";
+
       messagesListener = function (snap) {
         const msg = snap.val();
         const li = document.createElement("li");
-        li.setAttribute("data-key", snap.key);
+        li.setAttribute('data-key', snap.key);
+
+        // Editing UI
         if (!msg.system && msg.userUid === user.uid) {
           // Delete
-          const delBtn = document.createElement("button");
+          const delBtn = document.createElement('button');
           delBtn.textContent = "🗑️";
-          delBtn.className = "msg-btn";
           delBtn.title = "Delete";
+          delBtn.className = "msg-btn";
           delBtn.onclick = function() {
             if (confirm("Delete this message?")) roomRef.child(snap.key).remove();
           };
           li.appendChild(delBtn);
+
           // Edit
-          const editBtn = document.createElement("button");
+          const editBtn = document.createElement('button');
           editBtn.textContent = "✏️";
-          editBtn.className = "msg-btn";
           editBtn.title = "Edit";
+          editBtn.className = "msg-btn";
           editBtn.onclick = function() {
             const newMsg = prompt("Edit your message:", msg.message);
-            if (newMsg && newMsg.trim() !== "") {
-              roomRef.child(snap.key).update({message: newMsg, edited: true});
+            if (newMsg !== null && newMsg.trim() !== "") {
+              roomRef.child(snap.key).update({
+                message: newMsg,
+                edited: true
+              });
             }
           };
           li.appendChild(editBtn);
         }
+
+        // Main display
         if (msg.system) {
           li.className = "system-msg";
           li.textContent = msg.message;
         } else {
-          li.innerHTML +=
-            `<strong>${msg.username}</strong>: ${msg.message.replace(/</g,"&lt;")}
-             <span class="msg-time">${msg.time || ""}${msg.edited ? " (edited)" : ""}</span>`;
+          li.innerHTML += `<strong>${msg.username}</strong>: ${msg.message.replace(
+            /</g, "&lt;"
+          )} <span class="msg-time">${msg.time || ""}${msg.edited ? " (edited)" : ""}</span>`;
         }
         messages.appendChild(li);
         messages.scrollTop = messages.scrollHeight;
       };
-      // Listen add, edit, remove
+
+      // Attach message listeners (add, edit, delete)
       roomRef.limitToLast(50).on("child_added", messagesListener);
       roomRef.on("child_changed", function(snap) {
         const li = messages.querySelector(`[data-key="${snap.key}"]`);
         if (li) {
-          const msg = snap.val();
           li.innerHTML = '';
+          const msg = snap.val();
           if (!msg.system && msg.userUid === user.uid) {
-            // Delete
-            const delBtn = document.createElement("button");
+            const delBtn = document.createElement('button');
             delBtn.textContent = "🗑️";
             delBtn.className = "msg-btn";
             delBtn.title = "Delete";
@@ -228,8 +246,7 @@
               if (confirm("Delete this message?")) roomRef.child(snap.key).remove();
             };
             li.appendChild(delBtn);
-            // Edit
-            const editBtn = document.createElement("button");
+            const editBtn = document.createElement('button');
             editBtn.textContent = "✏️";
             editBtn.className = "msg-btn";
             editBtn.title = "Edit";
@@ -245,9 +262,9 @@
             li.className = "system-msg";
             li.textContent = msg.message;
           } else {
-            li.innerHTML +=
-              `<strong>${msg.username}</strong>: ${msg.message.replace(/</g,"&lt;")}
-               <span class="msg-time">${msg.time || ""}${msg.edited ? " (edited)" : ""}</span>`;
+            li.innerHTML += `<strong>${msg.username}</strong>: ${msg.message.replace(
+              /</g, "&lt;"
+            )} <span class="msg-time">${msg.time || ""}${msg.edited ? " (edited)" : ""}</span>`;
           }
         }
       });
