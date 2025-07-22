@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Firebase Chat App</title>
+  <meta charset="UTF- />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Firebase Chat</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
+<!-- 🔐 Register -->
 <div class="register-screen">
   <form id="register-form">
     <h2>Join Chat</h2>
@@ -17,29 +18,29 @@
   </form>
 </div>
 
+<!-- 💬 Chat UI -->
 <div class="chat-screen" style="display: none;">
   <div class="chat-header">
     <div>
       <span id="chat-room"></span> | 
       <span id="chat-username"></span> | 
-      👥 Online: <span id="online-users">0</span>
+      👥 Online: <span id="user-count">0</span>
     </div>
     <div class="chat-controls">
       <span id="theme-toggle" title="Toggle Theme">🌞</span>
-      <button id="leave-btn">Leave</button>
+      <button id="clear-room" style="display: none;">🗑️ Clear Chat</button>
+      <button id="leave-btn">🚪 Leave</button>
     </div>
   </div>
 
-  <div id="analytics">
-    👁️ Views: <span id="view-count">0</span> | 💬 Messages: <span id="msg-count">0</span>
+  <div id="messages-container">
+    <ul id="messages"></ul>
   </div>
 
   <div id="typing-indicator"></div>
 
-  <ul id="messages"></ul>
-
-  <form id="form" autocomplete="off">
-    <input id="input" placeholder="Type a message..." />
+  <form id="form">
+    <input id="input" placeholder="Type..." />
     <div class="emoji-buttons">
       <button type="button" onclick="addEmoji('😊')">😊</button>
       <button type="button" onclick="addEmoji('🔥')">🔥</button>
@@ -52,6 +53,7 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyC2CgKMqAqIc2_LsmLv7h9SeGH_P3iY3Lw",
@@ -64,9 +66,8 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-</script>
 
-<script>
+// DOM Elements
 const registerForm = document.getElementById("register-form");
 const regScreen = document.querySelector(".register-screen");
 const chatScreen = document.querySelector(".chat-screen");
@@ -75,20 +76,23 @@ const chatUsernameDisplay = document.getElementById("chat-username");
 const messageForm = document.getElementById("form");
 const input = document.getElementById("input");
 const messages = document.getElementById("messages");
-const typingIndicator = document.getElementById("typing-indicator");
-const viewCountEl = document.getElementById("view-count");
-const msgCountEl = document.getElementById("msg-count");
 const themeToggle = document.getElementById("theme-toggle");
 const leaveBtn = document.getElementById("leave-btn");
-const onlineUsersEl = document.getElementById("online-users");
+const clearRoomBtn = document.getElementById("clear-room");
+const typingIndicator = document.getElementById("typing-indicator");
+const userCount = document.getElementById("user-count");
 
-let username, room, roomRef, typingRef, analyticsRef, onlineUsersRef, thisUserRef;
+// Variables
+let username = "";
+let room = "";
+let roomRef, typingRef, usersRef, thisUserRef;
+const ADMIN_NAME = "admin"; // You are admin if you enter this username
 
-// Register
+// Join Room
 registerForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  username = document.getElementById("reg-username").value.trim();
-  room = document.getElementById("reg-room").value.trim() || "main";
+  username = document.getElementById("reg-username").value.trim().toLowerCase();
+  room = document.getElementById("reg-room").value.trim().toLowerCase() || "main";
   if (!username) return;
 
   regScreen.style.display = "none";
@@ -96,91 +100,53 @@ registerForm.addEventListener("submit", (e) => {
   chatRoomDisplay.textContent = `Room: ${room}`;
   chatUsernameDisplay.textContent = `User: ${username}`;
 
-  // Refs
   roomRef = db.ref(`rooms/${room}/messages`);
   typingRef = db.ref(`rooms/${room}/typing`);
-  analyticsRef = db.ref(`rooms/${room}/analytics`);
-  onlineUsersRef = db.ref(`rooms/${room}/onlineUsers`);
-  thisUserRef = onlineUsersRef.child(username);
+  usersRef = db.ref(`rooms/${room}/onlineUsers`);
+  thisUserRef = usersRef.child(username);
 
-  // Clear messages
-  messages.innerHTML = "";
+  thisUserRef.set(true);
+  thisUserRef.onDisconnect().remove();
 
-  // Show Messages
   roomRef.off();
   roomRef.limitToLast(100).on("child_added", snap => {
     renderMessage(snap.val());
-    incrementMsgCount();
   });
 
-  // System join msg
-  roomRef.push({
-    system: true,
-    message: `🔔 ${username} joined the room.`,
-    time: getTime()
+  usersRef.on("value", snap => {
+    const count = snap.val() ? Object.keys(snap.val()).length : 0;
+    userCount.textContent = count;
   });
 
-  // Typing Indicator
+  usersRef.on("child_removed", snap => {
+    const leftUser = snap.key;
+    if (leftUser !== username) {
+      roomRef.push({ system: true, message: `🚪 ${leftUser} left the room.`, time: timeNow() });
+    }
+  });
+
   typingRef.on("value", snap => {
     const typingUser = snap.val();
     typingIndicator.textContent = typingUser && typingUser !== username ? `${typingUser} is typing...` : "";
   });
 
-  // Analytics
-  incrementViews();
-  loadAnalytics();
+  roomRef.push({ system: true, message: `🔔 ${username} joined.`, time: timeNow() });
 
-  // Presence
-  thisUserRef.set(true);
-  thisUserRef.onDisconnect().remove();
-  onlineUsersRef.on("value", snap => {
-    const users = snap.val() || {};
-    onlineUsersEl.textContent = Object.keys(users).length;
-  });
-  onlineUsersRef.on("child_removed", snap => {
-    const leftUser = snap.key;
-    if (leftUser && leftUser !== username) {
-      roomRef.push({
-        system: true,
-        message: `🚪 ${leftUser} left the room.`,
-        time: getTime()
-      });
-    }
-  });
-
-  // Leave on page close
-  window.onbeforeunload = () => {
-    thisUserRef.remove();
-  };
+  if (username === ADMIN_NAME) clearRoomBtn.style.display = "inline-block";
 });
 
-// Send message
+// Sending Messages
 messageForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  const text = input.value.trim();
-  if (text) {
-    roomRef.push({
-      username,
-      message: text,
-      time: getTime()
-    });
+  const msg = input.value.trim();
+  if (msg) {
+    roomRef.push({ username, message: msg, time: timeNow() });
     input.value = "";
     typingRef.set(null);
   }
 });
 
-// Render message
-function renderMessage(msg) {
-  const li = document.createElement("li");
-  li.className = msg.system ? "system-msg" : "user-msg";
-  li.innerHTML = msg.system
-    ? msg.message
-    : `<strong>${msg.username}</strong>: ${msg.message} <span class="msg-time">${msg.time}</span>`;
-  messages.appendChild(li);
-  messages.scrollTop = messages.scrollHeight;
-}
-
-// Typing
+// Typing Indicator
 input.addEventListener("input", () => {
   typingRef.set(username);
   setTimeout(() => {
@@ -188,61 +154,60 @@ input.addEventListener("input", () => {
   }, 1000);
 });
 
+// Admin Clear Chat
+clearRoomBtn.addEventListener("click", () => {
+  if (confirm("Clear all messages in this room?")) {
+    roomRef.remove();
+    messages.innerHTML = "";
+    alert("Chat cleared by Admin.");
+  }
+});
+
 // Leave Room
 leaveBtn.addEventListener("click", () => {
-  if (roomRef && username) {
-    roomRef.push({
-      system: true,
-      message: `🚪 ${username} left the room.`,
-      time: getTime()
-    });
-    roomRef.off();
-  }
-  if (thisUserRef) thisUserRef.remove();
+  roomRef.push({ system: true, message: `🚪 ${username} left the room.`, time: timeNow() });
+  roomRef.off();
+  thisUserRef.remove();
   chatScreen.style.display = "none";
   regScreen.style.display = "flex";
   document.getElementById("reg-username").value = username;
   document.getElementById("reg-room").value = room;
 });
 
-// Emoji insert
-function addEmoji(emoji) {
-  input.value += emoji;
+// Emoji
+function addEmoji(e) {
+  input.value += e;
   input.focus();
 }
 
-// Dark / Light Theme
+// Theme Toggle
 themeToggle.addEventListener("click", () => {
-  const dark = !document.body.classList.contains("dark-mode");
-  document.body.classList.toggle("dark-mode", dark);
+  const dark = !document.body.classList.contains("dark");
+  document.body.classList.toggle("dark", dark);
+  themeToggle.textContent = dark ? "🌙" : "🌞";
   localStorage.setItem("dark-mode", dark);
-  themeToggle.textContent = dark ? "🌙" : "🌞";
 });
 
-// Init dark mode
-window.addEventListener("load", () => {
+// Auto Theme
+window.addEventListener("DOMContentLoaded", () => {
   const dark = localStorage.getItem("dark-mode") === "true";
-  document.body.classList.toggle("dark-mode", dark);
+  document.body.classList.toggle("dark", dark);
   themeToggle.textContent = dark ? "🌙" : "🌞";
 });
 
-// Analytics
-function incrementViews() {
-  analyticsRef.child("views").transaction(v => (v || 0) + 1);
-}
-function incrementMsgCount() {
-  analyticsRef.child("messages").transaction(m => (m || 0) + 1);
-}
-function loadAnalytics() {
-  analyticsRef.on("value", snap => {
-    const val = snap.val() || {};
-    viewCountEl.textContent = val.views || 0;
-    msgCountEl.textContent = val.messages || 0;
-  });
+// Message Render
+function renderMessage(msg) {
+  const li = document.createElement("li");
+  li.innerHTML = msg.system
+    ? `<em>${msg.message}</em>`
+    : `<strong>${msg.username}</strong>: ${msg.message} <span class="time">${msg.time}</span>`;
+  li.className = msg.system ? "system-msg" : "user-msg";
+  messages.appendChild(li);
+  messages.scrollTop = messages.scrollHeight;
 }
 
-// Format time
-function getTime() {
+// Time Format
+function timeNow() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 </script>
