@@ -3,124 +3,70 @@ body, html {
   padding: 0;
   font-family: Arial, sans-serif;
   height: 100%;
-  background-color: #f0f2f5;
+  background: #f0f2f5;
 }
-
-.register-screen, .chat-screen {
+.auth-screen, .register-screen, .chat-screen {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   height: 100vh;
 }
-
-#register-form {
+form {
+  margin: 10px;
+  padding: 20px;
   background: white;
-  padding: 30px;
-  box-shadow: 0 0 15px rgba(0,0,0,0.1);
-  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  border-radius: 8px;
 }
-#register-form input, #register-form button {
-  width: 100%;
-  padding: 12px;
+input, button {
   margin-bottom: 10px;
+  padding: 10px;
   font-size: 16px;
 }
-
 .chat-screen {
-  width: 100%;
-  flex-direction: column;
+  display: none;
+  text-align: left;
 }
 .chat-header {
   background: #4e54c8;
   color: white;
-  padding: 16px;
+  padding: 10px;
+  width: 100%;
   display: flex;
   justify-content: space-between;
-  width: 100%;
+  align-items: center;
 }
 .chat-controls {
   display: flex;
-  align-items: center;
   gap: 10px;
-}
-#typing-indicator {
-  margin: 10px;
-  color: #777;
-  font-style: italic;
-}
-#messages-container {
-  width: 90%;
-  max-height: 60vh;
-  overflow-y: auto;
-  margin: auto;
+  align-items: center;
 }
 #messages {
-  list-style: none;
-  padding: 0;
-}
-#messages li {
-  background: white;
+  height: 60vh;
+  overflow-y: auto;
   padding: 10px;
-  margin: 10px 0;
-  border-radius: 5px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  width: 100%;
+  list-style-type: none;
+}
+form#form {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
 }
 .system-msg {
   background: #fffbd1;
-  color: #8b6f00;
-  font-style: italic;
+  padding: 10px;
 }
-form {
-  display: flex;
-  width: 90%;
-  flex-wrap: wrap;
-  margin: 20px auto;
-  gap: 10px;
-}
-#input {
-  flex: 1;
-  padding: 12px;
-  font-size: 16px;
-}
-button {
-  padding: 10px 16px;
-  background: #4e54c8;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.emoji-buttons button {
-  padding: 6px 10px;
-  font-size: 16px;
-}
-.time {
-  color: #aaa;
-  font-size: 0.85em;
-  margin-left: 8px;
-}
-
-/* 🌙 Dark Mode */
-body.dark {
-  background: #1a1a1a;
+.dark {
+  background: #121212;
   color: #eee;
 }
-body.dark .chat-header {
-  background: #333;
+.dark .chat-header {
+  background: #222;
 }
-body.dark #messages li {
-  background: #2d2d2d;
+.dark form, .dark #messages li {
+  background: #222;
   color: #fff;
-}
-body.dark .system-msg {
-  background: #444;
-  color: #ffd700;
-}
-body.dark #input {
-  background: #444;
-  color: white;
-}
-body.dark button {
-  background: #555;
 }
