@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Firebase Chat App</title>
+  <title>🔥 Real-Time Chat with Emojis 😊 + Typing + Analytics</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Register/Login -->
   <div class="register-screen">
     <form id="register-form">
       <h2>Join Chat</h2>
@@ -16,24 +17,30 @@
     </form>
   </div>
 
+  <!-- Main Chat -->
   <div class="chat-screen" style="display: none;">
     <div class="chat-header">
-      <div>
-        <span id="chat-room"></span> | <span id="chat-username"></span>
-      </div>
+      <div><span id="chat-room"></span> | <span id="chat-username"></span></div>
       <div class="chat-controls">
-        <label class="mode-toggle">
+        <label>
           <input type="checkbox" id="dark-mode-toggle" />
-          🌙 Dark
+          🌒 Dark
         </label>
-        <button id="leave-btn">Leave Room</button>
+        <button id="leave-btn">Leave</button>
       </div>
     </div>
+    <div id="analytics">👁️ Page Views: <span id="view-count">0</span> | 💬 Messages: <span id="msg-count">0</span></div>
+
+    <div id="typing-indicator" style="font-style: italic; text-align: center;"></div>
 
     <ul id="messages"></ul>
+
     <form id="form" autocomplete="off">
-      <input id="input" placeholder="Type your message..." />
+      <input id="input" placeholder="Type a message..." />
       <button type="submit">Send</button>
+      <button type="button" onclick="addEmoji('😊')">😊</button>
+      <button type="button" onclick="addEmoji('🔥')">🔥</button>
+      <button type="button" onclick="addEmoji('😂')">😂</button>
     </form>
   </div>
 
@@ -41,6 +48,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script>
+    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyC2CgKMqAqIc2_LsmLv7h9SeGH_P3iY3Lw",
       authDomain: "chat-app-b8150.firebaseapp.com",
@@ -48,14 +56,13 @@
       projectId: "chat-app-b8150",
       storageBucket: "chat-app-b8150.appspot.com",
       messagingSenderId: "558501909388",
-      appId: "1:558501909388:web:3bc5aece4f56cd7d43fca9",
-      measurementId: "G-8S9BHZ9R0X"
+      appId: "1:558501909388:web:3bc5aece4f56cd7d43fca9"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
   </script>
 
-  <!-- App Logic -->
+  <!-- App Script -->
   <script>
     const registerForm = document.getElementById("register-form");
     const regScreen = document.querySelector(".register-screen");
@@ -67,11 +74,14 @@
     const messages = document.getElementById("messages");
     const darkToggle = document.getElementById("dark-mode-toggle");
     const leaveBtn = document.getElementById("leave-btn");
+    const typingIndicator = document.getElementById("typing-indicator");
+    const viewCountEl = document.getElementById("view-count");
+    const msgCountEl = document.getElementById("msg-count");
 
     let username, room;
-    let roomRef;
+    let roomRef, typingRef, analyticsRef;
 
-    // ======= Register Form Submit =======
+    // Register
     registerForm.addEventListener("submit", (e) => {
       e.preventDefault();
       username = document.getElementById("reg-username").value.trim();
@@ -84,30 +94,35 @@
       chatUsernameDisplay.textContent = "User: " + username;
 
       roomRef = db.ref(`rooms/${room}/messages`);
+      typingRef = db.ref(`rooms/${room}/typing`);
+      analyticsRef = db.ref(`rooms/${room}/analytics`);
       messages.innerHTML = "";
 
-      roomRef.off(); // clear previous listeners
-      roomRef.limitToLast(50).on("child_added", snapshot => {
+      roomRef.off();
+      roomRef.limitToLast(100).on("child_added", snapshot => {
         renderMessage(snapshot.val());
+        incrementMsgCount();
       });
 
       roomRef.push({
         system: true,
         message: `🔔 ${username} joined the room.`,
-        time: getTime()
+        time: time()
       });
 
-      // Optional on unload
-      window.onbeforeunload = () => {
-        roomRef.push({
-          system: true,
-          message: `🚪 ${username} left the room.`,
-          time: getTime()
-        });
-      };
+      // Typing Indicator
+      typingRef.on("value", snapshot => {
+        const typingUser = snapshot.val();
+        typingIndicator.textContent = typingUser && typingUser !== username ? `${typingUser} is typing...` : "";
+      });
+
+      window.addEventListener("beforeunload", leaveRoom);
+
+      incrementViews();
+      loadAnalytics();
     });
 
-    // ======= Message Send =======
+    // Send Message
     messageForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const text = input.value.trim();
@@ -115,59 +130,89 @@
         roomRef.push({
           username,
           message: text,
-          time: getTime()
+          time: time()
         });
         input.value = "";
+        typingRef.set(null);
       }
     });
 
-    // ======= Render Message to UI =======
+    // Render Message
     function renderMessage(msg) {
       const li = document.createElement("li");
-      if (msg.system) {
-        li.className = "system-msg";
-        li.textContent = msg.message;
-      } else {
-        li.innerHTML = `<strong>${msg.username}</strong>: 
-                        ${msg.message}
-                        <span class="msg-time">${msg.time || ""}</span>`;
-      }
+      li.className = msg.system ? "system-msg" : "user-msg";
+      li.innerHTML = msg.system
+        ? msg.message
+        : `<strong>${msg.username}</strong>: ${msg.message} <span class="msg-time">${msg.time || ""}</span>`;
       messages.appendChild(li);
       messages.scrollTop = messages.scrollHeight;
     }
 
-    // ======= Dark Mode Toggle =======
-    darkToggle.addEventListener("change", (e) => {
-      const dark = e.target.checked;
-      document.body.classList.toggle("dark-mode", dark);
-      localStorage.setItem("dark-mode", dark);
+    // Typing
+    input.addEventListener("input", () => {
+      typingRef.set(username);
+      setTimeout(() => {
+        if (!input.value) typingRef.set(null);
+      }, 1000);
     });
 
-    window.addEventListener("load", () => {
-      if (localStorage.getItem("dark-mode") === "true") {
-        document.body.classList.add("dark-mode");
-        darkToggle.checked = true;
-      }
-    });
+    // Leave Room
+    leaveBtn.addEventListener("click", leaveRoom);
 
-    // ======= Leave Button =======
-    leaveBtn.addEventListener("click", () => {
+    function leaveRoom() {
       if (roomRef && username) {
         roomRef.push({
           system: true,
           message: `🚪 ${username} left the room.`,
-          time: getTime()
+          time: time()
         });
-        roomRef.off(); // cleanup
+        roomRef.off();
       }
+      typingRef.set(null);
       chatScreen.style.display = "none";
       regScreen.style.display = "flex";
-      document.getElementById("reg-username").value = username; // retain user
+      document.getElementById("reg-username").value = username;
       document.getElementById("reg-room").value = room;
+    }
+
+    // Emoji Buttons
+    function addEmoji(emoji) {
+      input.value += emoji;
+      input.focus();
+    }
+
+    // Theme toggle
+    darkToggle.addEventListener("change", () => {
+      document.body.classList.toggle("dark-mode", darkToggle.checked);
+      localStorage.setItem("dark-mode", darkToggle.checked);
     });
 
-    function getTime() {
+    window.addEventListener("load", () => {
+      const dark = localStorage.getItem("dark-mode") === "true";
+      darkToggle.checked = dark;
+      document.body.classList.toggle("dark-mode", dark);
+    });
+
+    // Time format
+    function time() {
       return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+
+    // Analytics 🔢
+    function incrementViews() {
+      analyticsRef.child("views").transaction(current => (current || 0) + 1);
+    }
+
+    function incrementMsgCount() {
+      analyticsRef.child("messages").transaction(current => (current || 0) + 1);
+    }
+
+    function loadAnalytics() {
+      analyticsRef.on("value", snapshot => {
+        const data = snapshot.val() || {};
+        viewCountEl.textContent = data.views || 0;
+        msgCountEl.textContent = data.messages || 0;
+      });
     }
   </script>
 </body>
