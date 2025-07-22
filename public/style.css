@@ -13,6 +13,7 @@ body, html {
   justify-content: center;
   height: 100vh;
 }
+
 #register-form {
   background: white;
   padding: 30px;
@@ -26,10 +27,12 @@ body, html {
   padding: 12px;
   margin-bottom: 10px;
 }
+
 .chat-screen {
   flex-direction: column;
   width: 100%;
 }
+
 .chat-header {
   background: #4e54c8;
   color: white;
@@ -41,18 +44,20 @@ body, html {
 }
 .chat-controls {
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  align-items: center;
 }
 #analytics {
   font-size: 14px;
+  margin: 5px auto;
   color: #666;
-  margin-top: 8px;
 }
 #typing-indicator {
+  font-style: italic;
   font-size: 14px;
-  color: #888;
-  margin-top: 4px;
-  margin-bottom: -10px;
+  text-align: center;
+  color: #999;
+  margin-top: 8px;
 }
 #messages {
   width: 90%;
@@ -64,9 +69,9 @@ body, html {
 }
 #messages li {
   padding: 10px;
-  margin-bottom: 8px;
   background: white;
   border-radius: 6px;
+  margin-bottom: 10px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 .system-msg {
@@ -83,47 +88,54 @@ form {
 }
 #input {
   flex: 1;
-  padding: 10px;
+  padding: 12px;
   font-size: 16px;
-}
-.emoji-buttons button {
-  padding: 6px 10px;
 }
 button {
   background: #4e54c8;
   color: white;
+  padding: 12px;
+  font-weight: bold;
   border: none;
   border-radius: 4px;
-  padding: 10px;
   cursor: pointer;
 }
-.msg-time {
-  color: #aaa;
-  margin-left: 8px;
-  font-size: 0.85em;
+.emoji-buttons button {
+  padding: 6px 12px;
 }
 
-/* 🌙 Dark Mode */
+.theme-switch, #theme-toggle {
+  font-size: 22px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.msg-time {
+  color: #aaa;
+  font-size: 0.8em;
+  margin-left: 8px;
+}
+
+/* Dark Mode */
 body.dark-mode {
-  background: #1e1e1e;
+  background: #1f1f1f;
   color: white;
 }
-.dark-mode .chat-header {
+body.dark-mode .chat-header {
   background: #333;
 }
-.dark-mode #messages li {
+body.dark-mode #messages li {
   background: #2c2c2c;
   color: white;
 }
-.dark-mode .system-msg {
+body.dark-mode .system-msg {
   background: #444;
-  color: #ffea00;
+  color: #ffd400;
 }
-.dark-mode #input {
+body.dark-mode #input {
   background: #3a3a3a;
   color: #fff;
 }
-.dark-mode button {
-  background: #555;
-  color: #fff;
+body.dark-mode button {
+  background: #444;
 }
