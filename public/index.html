@@ -3,45 +3,236 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Firebase Chat App with Auth</title>
+  <title>Firebase Chat App</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<!-- 👤 Authentication -->
+<!-- 🔐 Authentication -->
 <div class="auth-screen">
-  <h2>Welcome to Firebase Chat</h2>
+  <h2>Login</h2>
   <form id="login-form">
     <input type="email" id="login-email" placeholder="Email" required />
     <input type="password" id="login-password" placeholder="Password" required />
     <button type="submit">Login</button>
     <p id="login-error"></p>
   </form>
-  <hr />
+  <h2>Sign Up</h2>
   <form id="signup-form">
-    <input type="email" id="signup-email" placeholder="Email" required />
-    <input type="password" id="signup-password" placeholder="Password" required />
+    <input type="email" id="signup-email" placeholder="New Email" required />
+    <input type="password" id="signup-password" placeholder="New Password" required />
     <button type="submit">Sign Up</button>
     <p id="signup-error"></p>
   </form>
 </div>
 
-<!-- Join Room -->
-<div class="register-screen" style="display: none;">
+<!-- 👋 Join Chat Room -->
+<div class="register-screen" style="display:none;">
   <form id="register-form">
-    <h2>Join Chat Room</h2>
-    <input id="reg-room" placeholder="Room (default: main)" />
+    <h2>Enter Room</h2>
+    <input id="reg-room" placeholder="Room name (default: main)" />
     <button type="submit">Enter Chat</button>
   </form>
 </div>
 
-<!-- 🔥 Chat UI -->
-<div class="chat-screen" style="display: none;">
+<!-- 💬 Chat Interface -->
+<div class="chat-screen" style="display:none;">
   <div class="chat-header">
     <div>
       <span id="chat-room"></span> |
-      👥 Online: <span id="user-count">0</span>
+      👥 <span id="user-count">0</span> Online
     </div>
     <div class="chat-controls">
-      <span id="theme-toggle">🌞</span>
-      <button id="clear-room" style
+      <span id="theme-toggle" title="Toggle Theme">🌞</span>
+      <button id="clear-chat" style="display:none;">🗑️ Clear</button>
+      <button id="leave-btn">🚪 Leave</button>
+    </div>
+  </div>
+
+  <div id="typing-indicator"></div>
+  <ul id="messages"></ul>
+
+  <form id="form">
+    <input id="input" autocomplete="off" placeholder="Type message..." />
+    <div>
+      <button type="button" onclick="addEmoji('😊')">😊</button>
+      <button type="button" onclick="addEmoji('🔥')">🔥</button>
+      <button type="button" onclick="addEmoji('😂')">😂</button>
+    </div>
+    <button type="submit">Send</button>
+  </form>
+</div>
+
+<!-- Firebase Scripts -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyC2CgKMqAqIc2_LsmLv7h9SeGH_P3iY3Lw",
+    authDomain: "chat-app-b8150.firebaseapp.com",
+    databaseURL: "https://chat-app-b8150-default-rtdb.firebaseio.com",
+    projectId: "chat-app-b8150",
+    storageBucket: "chat-app-b8150.appspot.com",
+    messagingSenderId: "558501909388",
+    appId: "1:558501909388:web:3bc5aece4f56cd7d43fca9"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.database();
+
+  // Elements
+  const authScreen = document.querySelector('.auth-screen');
+  const registerScreen = document.querySelector('.register-screen');
+  const chatScreen = document.querySelector('.chat-screen');
+  const loginForm = document.getElementById('login-form');
+  const signupForm = document.getElementById('signup-form');
+  const registerForm = document.getElementById('register-form');
+  const messageForm = document.getElementById('form');
+  const input = document.getElementById('input');
+  const messages = document.getElementById('messages');
+  const typingIndicator = document.getElementById('typing-indicator');
+  const themeToggle = document.getElementById('theme-toggle');
+  const leaveBtn = document.getElementById('leave-btn');
+  const clearChatBtn = document.getElementById('clear-chat');
+  const userCount = document.getElementById('user-count');
+  const chatRoomDisplay = document.getElementById('chat-room');
+  let user = null;
+  let room = "main";
+  let roomRef, typingRef, usersRef, thisUserRef;
+  const adminEmail = "your-admin-email@example.com"; // Set your admin email here
+
+  // Auth listeners
+  auth.onAuthStateChanged(u => {
+    if (u) {
+      user = u;
+      authScreen.style.display = "none";
+      registerScreen.style.display = "flex";
+    } else {
+      user = null;
+      authScreen.style.display = "flex";
+      registerScreen.style.display = "none";
+      chatScreen.style.display = "none";
+    }
+  });
+
+  loginForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value;
+    const pass = document.getElementById('login-password').value;
+    auth.signInWithEmailAndPassword(email, pass).catch(err => {
+      document.getElementById('login-error').innerText = err.message;
+    });
+  });
+
+  signupForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const email = document.getElementById('signup-email').value;
+    const pass = document.getElementById('signup-password').value;
+    auth.createUserWithEmailAndPassword(email, pass).catch(err => {
+      document.getElementById('signup-error').innerText = err.message;
+    });
+  });
+
+  registerForm.addEventListener('submit', e => {
+    e.preventDefault();
+    room = document.getElementById('reg-room').value.trim().toLowerCase() || "main";
+
+    registerScreen.style.display = "none";
+    chatScreen.style.display = "flex";
+    chatRoomDisplay.textContent = `Room: ${room}`;
+
+    roomRef = db.ref(`rooms/${room}/messages`);
+    typingRef = db.ref(`rooms/${room}/typing`);
+    usersRef = db.ref(`rooms/${room}/onlineUsers`);
+    thisUserRef = usersRef.child(user.uid);
+
+    thisUserRef.set(user.email);
+    thisUserRef.onDisconnect().remove();
+
+    roomRef.off();
+    messages.innerHTML = "";
+    roomRef.limitToLast(100).on("child_added", snap => {
+      const msg = snap.val();
+      const li = document.createElement('li');
+      li.innerHTML = msg.system
+        ? `<em>${msg.message}</em>`
+        : `<strong>${msg.username}</strong>: ${msg.message} <span style="color:#aaa; font-size:0.8em;">${msg.time}</span>`;
+      li.className = msg.system ? "system-msg" : "user-msg";
+      messages.appendChild(li);
+      messages.scrollTop = messages.scrollHeight;
+    });
+
+    usersRef.on("value", snap => {
+      const val = snap.val();
+      userCount.innerText = val ? Object.keys(val).length : 0;
+    });
+
+    usersRef.on("child_removed", snap => {
+      const leftUser = snap.val();
+      roomRef.push({ system: true, message: `🚪 ${leftUser} left.`, time: getTime() });
+    });
+
+    roomRef.push({ system: true, message: `🔔 ${user.email} joined.`, time: getTime() });
+
+    if (user.email === adminEmail) clearChatBtn.style.display = "inline-block";
+    else clearChatBtn.style.display = "none";
+  });
+
+  messageForm.addEventListener('submit', e => {
+    e.preventDefault();
+    if (input.value.trim()) {
+      roomRef.push({
+        username: user.email,
+        message: input.value,
+        time: getTime()
+      });
+      input.value = "";
+      typingRef.set(null);
+    }
+  });
+
+  input.addEventListener('input', () => {
+    typingRef.set(user.email);
+    setTimeout(() => {
+      if (!input.value) typingRef.set(null);
+    }, 1000);
+  });
+
+  themeToggle.addEventListener('click', () => {
+    const isDark = document.body.classList.toggle('dark');
+    localStorage.setItem("dark-mode", isDark);
+    themeToggle.textContent = isDark ? "🌙" : "🌞";
+  });
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const dark = localStorage.getItem("dark-mode") === "true";
+    document.body.classList.toggle("dark", dark);
+    themeToggle.textContent = dark ? "🌙" : "🌞";
+  });
+
+  leaveBtn.addEventListener('click', () => {
+    roomRef.push({ system: true, message: `🚪 ${user.email} left.`, time: getTime() });
+    thisUserRef.remove();
+    chatScreen.style.display = "none";
+    registerScreen.style.display = "flex";
+  });
+
+  clearChatBtn.addEventListener('click', () => {
+    if (confirm("Are you sure you want to delete all messages in this room?")) {
+      roomRef.remove();
+      messages.innerHTML = "";
+    }
+  });
+
+  function addEmoji(e) {
+    input.value += e;
+    input.focus();
+  }
+
+  function getTime() {
+    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+</script>
+</body>
+</html>
