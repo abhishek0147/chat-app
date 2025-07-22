@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Realtime Chat</title>
+  <title>Firebase Chat App</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -19,17 +19,22 @@
 
 <div class="chat-screen" style="display: none;">
   <div class="chat-header">
-    <div><span id="chat-room"></span> | <span id="chat-username"></span></div>
+    <div>
+      <span id="chat-room"></span> | 
+      <span id="chat-username"></span> | 
+      👥 Online: <span id="online-users">0</span>
+    </div>
     <div class="chat-controls">
-      <label><input type="checkbox" id="dark-mode-toggle" /> 🌒 Dark</label>
+      <span id="theme-toggle" title="Toggle Theme">🌞</span>
       <button id="leave-btn">Leave</button>
     </div>
   </div>
 
   <div id="analytics">
-    👁️ Page Views: <span id="view-count">0</span> | 💬 Messages: <span id="msg-count">0</span>
+    👁️ Views: <span id="view-count">0</span> | 💬 Messages: <span id="msg-count">0</span>
   </div>
-  <div id="typing-indicator" class="typing-info"></div>
+
+  <div id="typing-indicator"></div>
 
   <ul id="messages"></ul>
 
@@ -44,165 +49,202 @@
   </form>
 </div>
 
-<!-- Firebase -->
+<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyC2CgKMqAqIc2_LsmLv7h9SeGH_P3iY3Lw",
-    authDomain: "chat-app-b8150.firebaseapp.com",
-    databaseURL: "https://chat-app-b8150-default-rtdb.firebaseio.com",
-    projectId: "chat-app-b8150",
-    storageBucket: "chat-app-b8150.appspot.com",
-    messagingSenderId: "558501909388",
-    appId: "1:558501909388:web:3bc5aece4f56cd7d43fca9"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+const firebaseConfig = {
+  apiKey: "AIzaSyC2CgKMqAqIc2_LsmLv7h9SeGH_P3iY3Lw",
+  authDomain: "chat-app-b8150.firebaseapp.com",
+  databaseURL: "https://chat-app-b8150-default-rtdb.firebaseio.com",
+  projectId: "chat-app-b8150",
+  storageBucket: "chat-app-b8150.appspot.com",
+  messagingSenderId: "558501909388",
+  appId: "1:558501909388:web:3bc5aece4f56cd7d43fca9"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 </script>
 
 <script>
-  const registerForm = document.getElementById("register-form");
-  const regScreen = document.querySelector(".register-screen");
-  const chatScreen = document.querySelector(".chat-screen");
-  const chatRoomDisplay = document.getElementById("chat-room");
-  const chatUsernameDisplay = document.getElementById("chat-username");
-  const messageForm = document.getElementById("form");
-  const input = document.getElementById("input");
-  const messages = document.getElementById("messages");
-  const darkToggle = document.getElementById("dark-mode-toggle");
-  const leaveBtn = document.getElementById("leave-btn");
-  const typingIndicator = document.getElementById("typing-indicator");
-  const viewCountEl = document.getElementById("view-count");
-  const msgCountEl = document.getElementById("msg-count");
+const registerForm = document.getElementById("register-form");
+const regScreen = document.querySelector(".register-screen");
+const chatScreen = document.querySelector(".chat-screen");
+const chatRoomDisplay = document.getElementById("chat-room");
+const chatUsernameDisplay = document.getElementById("chat-username");
+const messageForm = document.getElementById("form");
+const input = document.getElementById("input");
+const messages = document.getElementById("messages");
+const typingIndicator = document.getElementById("typing-indicator");
+const viewCountEl = document.getElementById("view-count");
+const msgCountEl = document.getElementById("msg-count");
+const themeToggle = document.getElementById("theme-toggle");
+const leaveBtn = document.getElementById("leave-btn");
+const onlineUsersEl = document.getElementById("online-users");
 
-  let username, room;
-  let roomRef, typingRef, analyticsRef;
+let username, room, roomRef, typingRef, analyticsRef, onlineUsersRef, thisUserRef;
 
-  registerForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    username = document.getElementById("reg-username").value.trim();
-    room = document.getElementById("reg-room").value.trim() || "main";
-    if (!username) return;
+// Register
+registerForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  username = document.getElementById("reg-username").value.trim();
+  room = document.getElementById("reg-room").value.trim() || "main";
+  if (!username) return;
 
-    regScreen.style.display = "none";
-    chatScreen.style.display = "flex";
-    chatRoomDisplay.textContent = "Room: " + room;
-    chatUsernameDisplay.textContent = "User: " + username;
+  regScreen.style.display = "none";
+  chatScreen.style.display = "flex";
+  chatRoomDisplay.textContent = `Room: ${room}`;
+  chatUsernameDisplay.textContent = `User: ${username}`;
 
-    roomRef = db.ref(`rooms/${room}/messages`);
-    typingRef = db.ref(`rooms/${room}/typing`);
-    analyticsRef = db.ref(`rooms/${room}/analytics`);
-    messages.innerHTML = "";
+  // Refs
+  roomRef = db.ref(`rooms/${room}/messages`);
+  typingRef = db.ref(`rooms/${room}/typing`);
+  analyticsRef = db.ref(`rooms/${room}/analytics`);
+  onlineUsersRef = db.ref(`rooms/${room}/onlineUsers`);
+  thisUserRef = onlineUsersRef.child(username);
 
-    roomRef.off();
-    roomRef.limitToLast(100).on("child_added", snapshot => {
-      renderMessage(snapshot.val());
-      incrementMsgCount();
-    });
+  // Clear messages
+  messages.innerHTML = "";
 
-    roomRef.push({
-      system: true,
-      message: `🔔 ${username} joined the room.`,
-      time: time()
-    });
-
-    typingRef.on("value", snapshot => {
-      const typingUser = snapshot.val();
-      typingIndicator.textContent = typingUser && typingUser !== username ? `${typingUser} is typing...` : "";
-    });
-
-    window.addEventListener("beforeunload", leaveRoom);
-
-    incrementViews();
-    loadAnalytics();
+  // Show Messages
+  roomRef.off();
+  roomRef.limitToLast(100).on("child_added", snap => {
+    renderMessage(snap.val());
+    incrementMsgCount();
   });
 
-  messageForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const text = input.value.trim();
-    if (text) {
-      roomRef.push({
-        username,
-        message: text,
-        time: time()
-      });
-      input.value = "";
-      typingRef.set(null);
-    }
+  // System join msg
+  roomRef.push({
+    system: true,
+    message: `🔔 ${username} joined the room.`,
+    time: getTime()
   });
 
-  function renderMessage(msg) {
-    const li = document.createElement("li");
-    li.className = msg.system ? "system-msg" : "user-msg";
-    li.innerHTML = msg.system
-      ? msg.message
-      : `<strong>${msg.username}</strong>: ${msg.message} <span class="msg-time">${msg.time}</span>`;
-    messages.appendChild(li);
-    messages.scrollTop = messages.scrollHeight;
-  }
-
-  input.addEventListener("input", () => {
-    typingRef.set(username);
-    setTimeout(() => {
-      if (!input.value) typingRef.set(null);
-    }, 1000);
+  // Typing Indicator
+  typingRef.on("value", snap => {
+    const typingUser = snap.val();
+    typingIndicator.textContent = typingUser && typingUser !== username ? `${typingUser} is typing...` : "";
   });
 
-  leaveBtn.addEventListener("click", leaveRoom);
+  // Analytics
+  incrementViews();
+  loadAnalytics();
 
-  function leaveRoom() {
-    if (roomRef && username) {
+  // Presence
+  thisUserRef.set(true);
+  thisUserRef.onDisconnect().remove();
+  onlineUsersRef.on("value", snap => {
+    const users = snap.val() || {};
+    onlineUsersEl.textContent = Object.keys(users).length;
+  });
+  onlineUsersRef.on("child_removed", snap => {
+    const leftUser = snap.key;
+    if (leftUser && leftUser !== username) {
       roomRef.push({
         system: true,
-        message: `🚪 ${username} left the room.`,
-        time: time()
+        message: `🚪 ${leftUser} left the room.`,
+        time: getTime()
       });
-      roomRef.off();
-      typingRef.set(null);
     }
-    chatScreen.style.display = "none";
-    regScreen.style.display = "flex";
-    document.getElementById("reg-username").value = username;
-    document.getElementById("reg-room").value = room;
-  }
-
-  function addEmoji(emoji) {
-    input.value += emoji;
-    input.focus();
-  }
-
-  darkToggle.addEventListener("change", () => {
-    document.body.classList.toggle("dark-mode", darkToggle.checked);
-    localStorage.setItem("dark-mode", darkToggle.checked);
   });
 
-  window.addEventListener("load", () => {
-    const isDark = localStorage.getItem("dark-mode") === "true";
-    darkToggle.checked = isDark;
-    document.body.classList.toggle("dark-mode", isDark);
-  });
+  // Leave on page close
+  window.onbeforeunload = () => {
+    thisUserRef.remove();
+  };
+});
 
-  function time() {
-    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-
-  function incrementViews() {
-    analyticsRef.child("views").transaction(c => (c || 0) + 1);
-  }
-
-  function incrementMsgCount() {
-    analyticsRef.child("messages").transaction(c => (c || 0) + 1);
-  }
-
-  function loadAnalytics() {
-    analyticsRef.on("value", snapshot => {
-      const val = snapshot.val() || {};
-      viewCountEl.textContent = val.views || 0;
-      msgCountEl.textContent = val.messages || 0;
+// Send message
+messageForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if (text) {
+    roomRef.push({
+      username,
+      message: text,
+      time: getTime()
     });
+    input.value = "";
+    typingRef.set(null);
   }
-</script>
+});
 
+// Render message
+function renderMessage(msg) {
+  const li = document.createElement("li");
+  li.className = msg.system ? "system-msg" : "user-msg";
+  li.innerHTML = msg.system
+    ? msg.message
+    : `<strong>${msg.username}</strong>: ${msg.message} <span class="msg-time">${msg.time}</span>`;
+  messages.appendChild(li);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+// Typing
+input.addEventListener("input", () => {
+  typingRef.set(username);
+  setTimeout(() => {
+    if (!input.value) typingRef.set(null);
+  }, 1000);
+});
+
+// Leave Room
+leaveBtn.addEventListener("click", () => {
+  if (roomRef && username) {
+    roomRef.push({
+      system: true,
+      message: `🚪 ${username} left the room.`,
+      time: getTime()
+    });
+    roomRef.off();
+  }
+  if (thisUserRef) thisUserRef.remove();
+  chatScreen.style.display = "none";
+  regScreen.style.display = "flex";
+  document.getElementById("reg-username").value = username;
+  document.getElementById("reg-room").value = room;
+});
+
+// Emoji insert
+function addEmoji(emoji) {
+  input.value += emoji;
+  input.focus();
+}
+
+// Dark / Light Theme
+themeToggle.addEventListener("click", () => {
+  const dark = !document.body.classList.contains("dark-mode");
+  document.body.classList.toggle("dark-mode", dark);
+  localStorage.setItem("dark-mode", dark);
+  themeToggle.textContent = dark ? "🌙" : "🌞";
+});
+
+// Init dark mode
+window.addEventListener("load", () => {
+  const dark = localStorage.getItem("dark-mode") === "true";
+  document.body.classList.toggle("dark-mode", dark);
+  themeToggle.textContent = dark ? "🌙" : "🌞";
+});
+
+// Analytics
+function incrementViews() {
+  analyticsRef.child("views").transaction(v => (v || 0) + 1);
+}
+function incrementMsgCount() {
+  analyticsRef.child("messages").transaction(m => (m || 0) + 1);
+}
+function loadAnalytics() {
+  analyticsRef.on("value", snap => {
+    const val = snap.val() || {};
+    viewCountEl.textContent = val.views || 0;
+    msgCountEl.textContent = val.messages || 0;
+  });
+}
+
+// Format time
+function getTime() {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+</script>
 </body>
 </html>
