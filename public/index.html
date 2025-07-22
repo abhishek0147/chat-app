@@ -1,215 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF- />
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Admin Firebase Chat</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Firebase Chat App with Auth</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<!-- 🔐 Register -->
-<div class="register-screen">
+<!-- 👤 Authentication -->
+<div class="auth-screen">
+  <h2>Welcome to Firebase Chat</h2>
+  <form id="login-form">
+    <input type="email" id="login-email" placeholder="Email" required />
+    <input type="password" id="login-password" placeholder="Password" required />
+    <button type="submit">Login</button>
+    <p id="login-error"></p>
+  </form>
+  <hr />
+  <form id="signup-form">
+    <input type="email" id="signup-email" placeholder="Email" required />
+    <input type="password" id="signup-password" placeholder="Password" required />
+    <button type="submit">Sign Up</button>
+    <p id="signup-error"></p>
+  </form>
+</div>
+
+<!-- Join Room -->
+<div class="register-screen" style="display: none;">
   <form id="register-form">
-    <h2>Join Chat</h2>
-    <input id="reg-username" placeholder="Username" required />
+    <h2>Join Chat Room</h2>
     <input id="reg-room" placeholder="Room (default: main)" />
     <button type="submit">Enter Chat</button>
   </form>
 </div>
 
-<!-- 💬 Chat UI -->
+<!-- 🔥 Chat UI -->
 <div class="chat-screen" style="display: none;">
   <div class="chat-header">
     <div>
-      <span id="chat-room"></span> | 
-      <span id="chat-username"></span> | 
+      <span id="chat-room"></span> |
       👥 Online: <span id="user-count">0</span>
     </div>
     <div class="chat-controls">
-      <span id="theme-toggle" title="Toggle Theme">🌞</span>
-      <button id="clear-room" style="display: none;">🗑️ Clear Chat</button>
-      <button id="leave-btn">🚪 Leave</button>
-    </div>
-  </div>
-
-  <div id="messages-container">
-    <ul id="messages"></ul>
-  </div>
-
-  <div id="typing-indicator"></div>
-
-  <form id="form">
-    <input id="input" placeholder="Type..." />
-    <div class="emoji-buttons">
-      <button type="button" onclick="addEmoji('😊')">😊</button>
-      <button type="button" onclick="addEmoji('🔥')">🔥</button>
-      <button type="button" onclick="addEmoji('😂')">😂</button>
-    </div>
-    <button type="submit">Send</button>
-  </form>
-</div>
-
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyC2CgKMqAqIc2_LsmLv7h9SeGH_P3iY3Lw",
-  authDomain: "chat-app-b8150.firebaseapp.com",
-  databaseURL: "https://chat-app-b8150-default-rtdb.firebaseio.com",
-  projectId: "chat-app-b8150",
-  storageBucket: "chat-app-b8150.appspot.com",
-  messagingSenderId: "558501909388",
-  appId: "1:558501909388:web:3bc5aece4f56cd7d43fca9"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// DOM Elements
-const registerForm = document.getElementById("register-form");
-const regScreen = document.querySelector(".register-screen");
-const chatScreen = document.querySelector(".chat-screen");
-const chatRoomDisplay = document.getElementById("chat-room");
-const chatUsernameDisplay = document.getElementById("chat-username");
-const messageForm = document.getElementById("form");
-const input = document.getElementById("input");
-const messages = document.getElementById("messages");
-const themeToggle = document.getElementById("theme-toggle");
-const leaveBtn = document.getElementById("leave-btn");
-const clearRoomBtn = document.getElementById("clear-room");
-const typingIndicator = document.getElementById("typing-indicator");
-const userCount = document.getElementById("user-count");
-
-// Variables
-let username = "";
-let room = "";
-let roomRef, typingRef, usersRef, thisUserRef;
-const ADMIN_NAME = "admin"; // You are admin if you enter this username
-
-// Join Room
-registerForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  username = document.getElementById("reg-username").value.trim().toLowerCase();
-  room = document.getElementById("reg-room").value.trim().toLowerCase() || "main";
-  if (!username) return;
-
-  regScreen.style.display = "none";
-  chatScreen.style.display = "flex";
-  chatRoomDisplay.textContent = `Room: ${room}`;
-  chatUsernameDisplay.textContent = `User: ${username}`;
-
-  roomRef = db.ref(`rooms/${room}/messages`);
-  typingRef = db.ref(`rooms/${room}/typing`);
-  usersRef = db.ref(`rooms/${room}/onlineUsers`);
-  thisUserRef = usersRef.child(username);
-
-  thisUserRef.set(true);
-  thisUserRef.onDisconnect().remove();
-
-  roomRef.off();
-  roomRef.limitToLast(100).on("child_added", snap => {
-    renderMessage(snap.val());
-  });
-
-  usersRef.on("value", snap => {
-    const count = snap.val() ? Object.keys(snap.val()).length : 0;
-    userCount.textContent = count;
-  });
-
-  usersRef.on("child_removed", snap => {
-    const leftUser = snap.key;
-    if (leftUser !== username) {
-      roomRef.push({ system: true, message: `🚪 ${leftUser} left the room.`, time: timeNow() });
-    }
-  });
-
-  typingRef.on("value", snap => {
-    const typingUser = snap.val();
-    typingIndicator.textContent = typingUser && typingUser !== username ? `${typingUser} is typing...` : "";
-  });
-
-  roomRef.push({ system: true, message: `🔔 ${username} joined.`, time: timeNow() });
-
-  if (username === ADMIN_NAME) clearRoomBtn.style.display = "inline-block";
-});
-
-// Sending Messages
-messageForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const msg = input.value.trim();
-  if (msg) {
-    roomRef.push({ username, message: msg, time: timeNow() });
-    input.value = "";
-    typingRef.set(null);
-  }
-});
-
-// Typing Indicator
-input.addEventListener("input", () => {
-  typingRef.set(username);
-  setTimeout(() => {
-    if (!input.value) typingRef.set(null);
-  }, 1000);
-});
-
-// Admin Clear Chat
-clearRoomBtn.addEventListener("click", () => {
-  if (confirm("Clear all messages in this room?")) {
-    roomRef.remove();
-    messages.innerHTML = "";
-    alert("Chat cleared by Admin.");
-  }
-});
-
-// Leave Room
-leaveBtn.addEventListener("click", () => {
-  roomRef.push({ system: true, message: `🚪 ${username} left the room.`, time: timeNow() });
-  roomRef.off();
-  thisUserRef.remove();
-  chatScreen.style.display = "none";
-  regScreen.style.display = "flex";
-  document.getElementById("reg-username").value = username;
-  document.getElementById("reg-room").value = room;
-});
-
-// Emoji
-function addEmoji(e) {
-  input.value += e;
-  input.focus();
-}
-
-// Theme Toggle
-themeToggle.addEventListener("click", () => {
-  const dark = !document.body.classList.contains("dark");
-  document.body.classList.toggle("dark", dark);
-  themeToggle.textContent = dark ? "🌙" : "🌞";
-  localStorage.setItem("dark-mode", dark);
-});
-
-// Auto Theme
-window.addEventListener("DOMContentLoaded", () => {
-  const dark = localStorage.getItem("dark-mode") === "true";
-  document.body.classList.toggle("dark", dark);
-  themeToggle.textContent = dark ? "🌙" : "🌞";
-});
-
-// Message Render
-function renderMessage(msg) {
-  const li = document.createElement("li");
-  li.innerHTML = msg.system
-    ? `<em>${msg.message}</em>`
-    : `<strong>${msg.username}</strong>: ${msg.message} <span class="time">${msg.time}</span>`;
-  li.className = msg.system ? "system-msg" : "user-msg";
-  messages.appendChild(li);
-  messages.scrollTop = messages.scrollHeight;
-}
-
-// Time Format
-function timeNow() {
-  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-</script>
-</body>
-</html>
+      <span id="theme-toggle">🌞</span>
+      <button id="clear-room" style
