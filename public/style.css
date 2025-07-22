@@ -27,6 +27,7 @@ body, html {
 }
 .chat-screen {
   flex-direction: column;
+  width: 100%;
 }
 .chat-header {
   background: #4e54c8;
@@ -35,13 +36,19 @@ body, html {
   width: 100%;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-weight: bold;
+}
+.chat-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 #messages {
   flex: 1;
   width: 90%;
   max-height: 60vh;
-  margin: 16px 0;
+  margin: 16px auto;
   overflow-y: auto;
   list-style: none;
   padding: 0;
@@ -82,4 +89,35 @@ button {
   color: #aaa;
   font-size: 0.9em;
   margin-left: 8px;
+}
+
+/* 🌙 Dark Mode */
+body.dark-mode {
+  background-color: #1c1c1c;
+  color: #f0f0f0;
+}
+
+body.dark-mode .chat-header {
+  background: #333;
+  color: #f0f0f0;
+}
+
+body.dark-mode #messages li {
+  background: #2c2c2c;
+  color: #e0e0e0;
+}
+
+body.dark-mode .system-msg {
+  background: #3a3a1c;
+  color: #ffeb7e;
+}
+
+body.dark-mode #input {
+  background-color: #444;
+  color: #fff;
+}
+
+body.dark-mode button {
+  background-color: #555;
+  color: #fff;
 }
