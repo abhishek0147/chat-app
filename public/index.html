@@ -18,9 +18,18 @@
 
   <div class="chat-screen" style="display: none;">
     <div class="chat-header">
-      <span id="chat-room"></span>
-      <span id="chat-username"></span>
+      <div>
+        <span id="chat-room"></span> | <span id="chat-username"></span>
+      </div>
+      <div class="chat-controls">
+        <label class="mode-toggle">
+          <input type="checkbox" id="dark-mode-toggle" />
+          🌙 Dark
+        </label>
+        <button id="leave-btn">Leave Room</button>
+      </div>
     </div>
+
     <ul id="messages"></ul>
     <form id="form" autocomplete="off">
       <input id="input" placeholder="Type your message..." />
@@ -28,17 +37,16 @@
     </form>
   </div>
 
-  <!-- Firebase SDKs -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script>
-    // Your corrected Firebase config:
     const firebaseConfig = {
       apiKey: "AIzaSyC2CgKMqAqIc2_LsmLv7h9SeGH_P3iY3Lw",
       authDomain: "chat-app-b8150.firebaseapp.com",
       databaseURL: "https://chat-app-b8150-default-rtdb.firebaseio.com",
       projectId: "chat-app-b8150",
-      storageBucket: "chat-app-b8150.appspot.com",  // Corrected from .firebasestorage.app
+      storageBucket: "chat-app-b8150.appspot.com",
       messagingSenderId: "558501909388",
       appId: "1:558501909388:web:3bc5aece4f56cd7d43fca9",
       measurementId: "G-8S9BHZ9R0X"
@@ -46,6 +54,8 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
   </script>
+
+  <!-- App Logic -->
   <script>
     const registerForm = document.getElementById("register-form");
     const regScreen = document.querySelector(".register-screen");
@@ -55,9 +65,13 @@
     const messageForm = document.getElementById("form");
     const input = document.getElementById("input");
     const messages = document.getElementById("messages");
+    const darkToggle = document.getElementById("dark-mode-toggle");
+    const leaveBtn = document.getElementById("leave-btn");
+
     let username, room;
     let roomRef;
 
+    // ======= Register Form Submit =======
     registerForm.addEventListener("submit", (e) => {
       e.preventDefault();
       username = document.getElementById("reg-username").value.trim();
@@ -72,20 +86,28 @@
       roomRef = db.ref(`rooms/${room}/messages`);
       messages.innerHTML = "";
 
-      roomRef.off(); // Remove old listeners
+      roomRef.off(); // clear previous listeners
       roomRef.limitToLast(50).on("child_added", snapshot => {
-        const msg = snapshot.val();
-        renderMessage(msg);
+        renderMessage(snapshot.val());
       });
 
-      // Show join system message
       roomRef.push({
         system: true,
         message: `🔔 ${username} joined the room.`,
-        time: new Date().toLocaleTimeString()
+        time: getTime()
       });
+
+      // Optional on unload
+      window.onbeforeunload = () => {
+        roomRef.push({
+          system: true,
+          message: `🚪 ${username} left the room.`,
+          time: getTime()
+        });
+      };
     });
 
+    // ======= Message Send =======
     messageForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const text = input.value.trim();
@@ -93,23 +115,59 @@
         roomRef.push({
           username,
           message: text,
-          time: new Date().toLocaleTimeString()
+          time: getTime()
         });
         input.value = "";
       }
     });
 
+    // ======= Render Message to UI =======
     function renderMessage(msg) {
       const li = document.createElement("li");
       if (msg.system) {
         li.className = "system-msg";
         li.textContent = msg.message;
       } else {
-        li.innerHTML =
-          `<strong>${msg.username}</strong>: ${msg.message} <span class="msg-time">${msg.time || ""}</span>`;
+        li.innerHTML = `<strong>${msg.username}</strong>: 
+                        ${msg.message}
+                        <span class="msg-time">${msg.time || ""}</span>`;
       }
       messages.appendChild(li);
       messages.scrollTop = messages.scrollHeight;
+    }
+
+    // ======= Dark Mode Toggle =======
+    darkToggle.addEventListener("change", (e) => {
+      const dark = e.target.checked;
+      document.body.classList.toggle("dark-mode", dark);
+      localStorage.setItem("dark-mode", dark);
+    });
+
+    window.addEventListener("load", () => {
+      if (localStorage.getItem("dark-mode") === "true") {
+        document.body.classList.add("dark-mode");
+        darkToggle.checked = true;
+      }
+    });
+
+    // ======= Leave Button =======
+    leaveBtn.addEventListener("click", () => {
+      if (roomRef && username) {
+        roomRef.push({
+          system: true,
+          message: `🚪 ${username} left the room.`,
+          time: getTime()
+        });
+        roomRef.off(); // cleanup
+      }
+      chatScreen.style.display = "none";
+      regScreen.style.display = "flex";
+      document.getElementById("reg-username").value = username; // retain user
+      document.getElementById("reg-room").value = room;
+    });
+
+    function getTime() {
+      return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     }
   </script>
 </body>
