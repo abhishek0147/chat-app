@@ -1,22 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" >
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#4e54c8" />
-  <title>Firebase Chat App</title>
+  <title>Firebase Chat App with Reactions</title>
   <link rel="stylesheet" href="style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet" />
 </head>
 <body>
 
-<!-- 🌟 Welcome Message -->
 <div class="welcome-screen">
   <h1>💬 Welcome to FireChat</h1>
   <p>Smooth real-time messaging, simple & secure.</p>
 </div>
 
-<!-- 🔐 Authentication -->
 <div class="auth-screen">
   <form id="login-form">
     <h2>Login</h2>
@@ -27,7 +24,6 @@
     <p id="login-error"></p>
     <p>Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
   </form>
-
   <form id="signup-form" style="display:none;">
     <h2>Sign Up</h2>
     <input type="text" id="signup-name" placeholder="Your Name" required />
@@ -39,7 +35,6 @@
   </form>
 </div>
 
-<!-- 🏠 Enter Room -->
 <div class="register-screen" style="display:none;">
   <form id="register-form">
     <h2>Enter Chat Room</h2>
@@ -48,7 +43,6 @@
   </form>
 </div>
 
-<!-- 💬 Chat Interface -->
 <div class="chat-screen" style="display:none;">
   <div class="chat-header">
     <div>
@@ -63,18 +57,18 @@
   </div>
   <div id="typing-indicator"></div>
   <ul id="messages"></ul>
-  <form id="form">
+
+  <!-- Horizontally aligned input + emoji buttons -->
+  <form id="form" class="horizontal-form">
     <input id="input" autocomplete="off" placeholder="Type message..." />
-    <div>
-      <button type="button" onclick="addEmoji('😊')">😊</button>
-      <button type="button" onclick="addEmoji('🔥')">🔥</button>
-      <button type="button" onclick="addEmoji('😂')">😂</button>
-    </div>
-    <button type="submit">Send</button>
+    <button type="button" class="emoji-button" data-emoji="😊">😊</button>
+    <button type="button" class="emoji-button" data-emoji="🔥">🔥</button>
+    <button type="button" class="emoji-button" data-emoji="😂">😂</button>
+    <button type="submit" id="send-button">Send</button>
   </form>
 </div>
 
-<!-- Firebase Scripts -->
+<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -88,88 +82,100 @@
     messagingSenderId: "558501909388",
     appId: "1:558501909388:web:3bc5aece4f56cd7d43fca9"
   };
-
   firebase.initializeApp(firebaseConfig);
+
   const auth = firebase.auth();
   const db = firebase.database();
   const provider = new firebase.auth.GoogleAuthProvider();
 
-  const authScreen = document.querySelector(".auth-screen");
+  // Elements
   const welcomeScreen = document.querySelector(".welcome-screen");
+  const authScreen = document.querySelector(".auth-screen");
   const loginForm = document.getElementById("login-form");
   const signupForm = document.getElementById("signup-form");
-  const registerScreen = document.querySelector('.register-screen');
-  const chatScreen = document.querySelector('.chat-screen');
-  const input = document.getElementById('input');
-  const messages = document.getElementById('messages');
-  const loginError = document.getElementById('login-error');
-  const signupError = document.getElementById('signup-error');
+  const registerScreen = document.querySelector(".register-screen");
+  const registerForm = document.getElementById("register-form");
+  const chatScreen = document.querySelector(".chat-screen");
+  const input = document.getElementById("input");
+  const messages = document.getElementById("messages");
+  const typingIndicator = document.getElementById("typing-indicator");
+  const themeToggle = document.getElementById("theme-toggle");
+  const leaveBtn = document.getElementById("leave-btn");
+  const clearChatBtn = document.getElementById("clear-chat");
+  const userCount = document.getElementById("user-count");
+  const chatRoomDisplay = document.getElementById("chat-room");
+  const sendButton = document.getElementById("send-button");
 
-  const themeToggle = document.getElementById('theme-toggle');
-  const leaveBtn = document.getElementById('leave-btn');
-  const clearChatBtn = document.getElementById('clear-chat');
-  const userCount = document.getElementById('user-count');
-  const chatRoomDisplay = document.getElementById('chat-room');
-  const typingIndicator = document.getElementById('typing-indicator');
-
-  const adminEmail = "your-admin-email@gmail.com"; // Replace this with your actual email
   let user = null;
   let room = "main";
   let roomRef, typingRef, usersRef, thisUserRef;
+  const adminEmail = "your-admin-email@gmail.com"; // Replace this
 
-  // Show Welcome Then Login
+  // Show welcome, then login screen
   setTimeout(() => {
     welcomeScreen.style.display = "none";
     authScreen.style.display = "flex";
   }, 2000);
 
-  document.getElementById("show-signup").onclick = () => {
+  // Switch login/sign-up forms
+  document.getElementById("show-signup").onclick = e => {
+    e.preventDefault();
     loginForm.style.display = "none";
     signupForm.style.display = "block";
   };
 
-  document.getElementById("show-login").onclick = () => {
+  document.getElementById("show-login").onclick = e => {
+    e.preventDefault();
     signupForm.style.display = "none";
     loginForm.style.display = "block";
   };
 
+  // Google login
   document.getElementById("google-login").onclick = () => {
-    auth.signInWithPopup(provider);
+    auth.signInWithPopup(provider).catch(e => alert("Google Sign-In: " + e.message));
   };
 
-  auth.onAuthStateChanged(async (u) => {
-    if (u) {
+  // Authentication state listener
+  auth.onAuthStateChanged(u => {
+    if(u) {
       user = u;
-      const userName = u.displayName || localStorage.getItem("name") || "User";
-      user.displayName = userName;
       authScreen.style.display = "none";
       registerScreen.style.display = "flex";
+    } else {
+      user = null;
+      authScreen.style.display = "flex";
+      signupForm.style.display = "none";
+      loginForm.style.display = "block";
+      registerScreen.style.display = "none";
+      chatScreen.style.display = "none";
     }
   });
 
-  loginForm.addEventListener('submit', e => {
+  // Login form
+  loginForm.addEventListener("submit", e => {
     e.preventDefault();
-    const email = document.getElementById('login-email').value;
-    const pass = document.getElementById('login-password').value;
-    auth.signInWithEmailAndPassword(email, pass)
-      .catch(err => loginError.innerText = err.message);
+    const email = document.getElementById("login-email").value;
+    const pass = document.getElementById("login-password").value;
+    auth.signInWithEmailAndPassword(email, pass).catch(e => {
+      document.getElementById("login-error").innerText = e.message;
+    });
   });
 
-  signupForm.addEventListener('submit', e => {
+  // Signup form
+  signupForm.addEventListener("submit", e => {
     e.preventDefault();
     const name = document.getElementById("signup-name").value;
     const email = document.getElementById("signup-email").value;
     const pass = document.getElementById("signup-password").value;
-
     auth.createUserWithEmailAndPassword(email, pass).then(cred => {
-      localStorage.setItem("name", name);
       return cred.user.updateProfile({ displayName: name });
-    }).catch(err => {
-      signupError.innerText = err.message;
+    }).catch(e => {
+      document.getElementById("signup-error").innerText = e.message;
     });
   });
 
-  document.getElementById("register-form").addEventListener("submit", (e) => {
+  // Enter room
+  registerForm.addEventListener("submit", e => {
     e.preventDefault();
     room = document.getElementById("reg-room").value.trim().toLowerCase() || "main";
     registerScreen.style.display = "none";
@@ -181,25 +187,18 @@
     usersRef = db.ref(`rooms/${room}/onlineUsers`);
     thisUserRef = usersRef.child(user.uid);
 
-    thisUserRef.set(user.displayName);
+    thisUserRef.set(user.displayName || user.email);
     thisUserRef.onDisconnect().remove();
 
-    roomRef.off();
     messages.innerHTML = "";
+    roomRef.limitToLast(100).off();
     roomRef.limitToLast(100).on("child_added", snap => {
-      const msg = snap.val();
-      const li = document.createElement("li");
-      li.innerHTML = msg.system
-        ? `<em>${msg.message}</em>`
-        : `<strong>${msg.username}</strong>: ${msg.message} <span style="color:#aaa; font-size:0.8em;">${msg.time}</span>`;
-      li.className = msg.system ? "system-msg" : "user-msg";
-      messages.appendChild(li);
-      messages.scrollTop = messages.scrollHeight;
+      renderMessage(snap.key, snap.val());
     });
 
     usersRef.on("value", snap => {
       const online = snap.val();
-      userCount.innerText = online ? Object.keys(online).length : 0;
+      userCount.textContent = online ? Object.keys(online).length : "0";
     });
 
     usersRef.on("child_removed", snap => {
@@ -207,65 +206,156 @@
       roomRef.push({ system: true, message: `🚪 ${leftUser} left.`, time: getTime() });
     });
 
-    roomRef.push({ system: true, message: `🔔 ${user.displayName} joined.`, time: getTime() });
+    roomRef.push({ system: true, message: `🔔 ${user.displayName || user.email} joined.`, time: getTime() });
 
-    if (user.email === adminEmail) clearChatBtn.style.display = "inline-block";
-    else clearChatBtn.style.display = "none";
+    clearChatBtn.style.display = user.email === adminEmail ? "inline-block" : "none";
   });
 
+  // Send message
   document.getElementById("form").addEventListener("submit", e => {
     e.preventDefault();
-    if (input.value.trim()) {
+    const msg = input.value.trim();
+    if(!msg) return;
+    sendMessage(msg);
+  });
+
+  // Emoji buttons send message instantly
+  document.querySelectorAll(".emoji-button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      sendMessage(btn.dataset.emoji);
+    });
+  });
+
+  function sendMessage(msg) {
+    if(roomRef) {
       roomRef.push({
-        username: user.displayName,
-        message: input.value,
-        time: getTime()
+        username: user.displayName || user.email,
+        message: msg,
+        time: getTime(),
+        reactions: {} // initialize empty reactions object
       });
       input.value = "";
       typingRef.set(null);
     }
-  });
+  }
 
+  // Typing indicator
   input.addEventListener("input", () => {
-    typingRef.set(user.displayName);
+    typingRef.set(user.displayName || user.email);
     setTimeout(() => {
-      if (!input.value) typingRef.set(null);
+      if(!input.value) typingRef.set(null);
     }, 1000);
   });
 
+  // Theme toggle
+  themeToggle.addEventListener("click", () => {
+    const isDark = document.body.classList.toggle("dark");
+    localStorage.setItem("dark-mode", isDark);
+    themeToggle.textContent = isDark ? "🌙" : "🌞";
+  });
+
+  window.addEventListener("DOMContentLoaded", () => {
+    const dark = localStorage.getItem("dark-mode") === "true";
+    document.body.classList.toggle("dark", dark);
+    themeToggle.textContent = dark ? "🌙" : "🌞";
+  });
+
+  // Leave room
   leaveBtn.addEventListener("click", () => {
-    roomRef.push({ system: true, message: `🚪 ${user.displayName} left.`, time: getTime() });
+    roomRef.push({ system: true, message: `🚪 ${user.displayName || user.email} left.`, time: getTime() });
     thisUserRef.remove();
     chatScreen.style.display = "none";
     registerScreen.style.display = "flex";
   });
 
+  // Clear chat (admin only)
   clearChatBtn.addEventListener("click", () => {
-    if (confirm("Clear all messages in this room?")) {
+    if(confirm("Clear all messages in this room?")) {
       roomRef.remove();
       messages.innerHTML = "";
     }
   });
 
-  themeToggle.addEventListener("click", () => {
-    const dark = document.body.classList.toggle("dark");
-    localStorage.setItem("dark-mode", dark);
-    themeToggle.textContent = dark ? "🌙" : "🌞";
-  });
+  // Render message with reactions
+  function renderMessage(msgId, msg) {
+    // create container
+    let li = document.getElementById(msgId);
+    if(!li) {
+      li = document.createElement("li");
+      li.id = msgId;
+      messages.appendChild(li);
+    }
+    li.innerHTML = "";
+    li.className = msg.system ? "system-msg" : "user-msg";
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const darkMode = localStorage.getItem("dark-mode") === "true";
-    document.body.classList.toggle("dark", darkMode);
-    themeToggle.textContent = darkMode ? "🌙" : "🌞";
-  });
+    if(msg.system) {
+      li.textContent = msg.message;
+    } else {
+      const usernameSpan = document.createElement("strong");
+      usernameSpan.textContent = msg.username + ": ";
+      li.appendChild(usernameSpan);
 
-  function getTime() {
-    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const msgText = document.createElement("span");
+      msgText.textContent = msg.message + " ";
+      li.appendChild(msgText);
+
+      const timeSpan = document.createElement("span");
+      timeSpan.textContent = msg.time || "";
+      timeSpan.className = "msg-time";
+      li.appendChild(timeSpan);
+
+      // Reaction container
+      const reactionsDiv = document.createElement("div");
+      reactionsDiv.className = "reactions";
+
+      // List of emojis for reactions
+      const reactionEmojis = ['😊', '🔥', '😂'];
+
+      reactionEmojis.forEach(emoji => {
+        const btn = document.createElement("button");
+        btn.className = "reaction-btn";
+        btn.textContent = emoji;
+
+        let count = 0;
+        if(msg.reactions && msg.reactions[emoji]) {
+          count = Object.values(msg.reactions[emoji]).length;
+        }
+        const countSpan = document.createElement("span");
+        countSpan.className = "reaction-count";
+        countSpan.textContent = count > 0 ? count : "";
+
+        btn.appendChild(countSpan);
+
+        // Reaction click handler
+        btn.onclick = () => handleReaction(msgId, emoji);
+
+        reactionsDiv.appendChild(btn);
+      });
+
+      li.appendChild(reactionsDiv);
+    }
   }
 
-  function addEmoji(e) {
-    input.value += e;
-    input.focus();
+  // Handle adding/removing reaction from Firebase
+  function handleReaction(msgId, emoji) {
+    const userId = user.uid;
+    const reactionRef = db.ref(`rooms/${room}/messages/${msgId}/reactions/${emoji}`);
+
+    reactionRef.once("value", snapshot => {
+      let reactions = snapshot.val() || {};
+      if (reactions[userId]) {
+        // user already reacted -> remove reaction
+        reactionRef.child(userId).remove();
+      } else {
+        // add user reaction
+        reactionRef.child(userId).set(true);
+      }
+    });
+  }
+
+  // Helper: get formatted time
+  function getTime() {
+    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 </script>
 </body>
