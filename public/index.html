@@ -9,13 +9,13 @@
 </head>
 <body>
 
-<!-- 🌟 Welcome -->
+<!-- 💬 Welcome -->
 <div class="welcome-screen">
   <h1>💬 Welcome to FireChat</h1>
-  <p>Realtime secure messaging made simple.</p>
+  <p>Super fast & secure real-time messaging.</p>
 </div>
 
-<!-- 🔐 Auth -->
+<!-- 🔐 Login & Signup -->
 <div class="auth-screen">
   <form id="login-form">
     <h2>Login</h2>
@@ -48,7 +48,7 @@
   </form>
 </div>
 
-<!-- 💬 Chat Area -->
+<!-- 💬 Chat -->
 <div class="chat-screen" style="display:none;">
   <div class="chat-header">
     <div>
@@ -63,7 +63,7 @@
   <div id="typing-indicator"></div>
   <ul id="messages"></ul>
 
-  <!-- Message Input Bar -->
+  <!-- Chat Input -->
   <form id="form" class="msg-bar">
     <input id="input" autocomplete="off" placeholder="Message..." />
     <button type="button" class="emoji-button" data-emoji="😊">😊</button>
@@ -73,12 +73,12 @@
   </form>
 </div>
 
-<!-- Firebase SDKs -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<!-- Firebase Logic -->
+<!-- 🔥 App Logic -->
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyC2CgKMqAqIc2_LsmLv7h9SeGH_P3iY3Lw",
@@ -95,6 +95,11 @@
   const db = firebase.database();
   const provider = new firebase.auth.GoogleAuthProvider();
 
+  let user = null;
+  let room = "main";
+  let roomRef, usersRef, typingRef, thisUserRef;
+  const adminEmail = "2k22.aiml.2211995@gmail.com";
+
   const welcomeScreen = document.querySelector(".welcome-screen");
   const authScreen = document.querySelector(".auth-screen");
   const loginForm = document.getElementById("login-form");
@@ -109,18 +114,13 @@
   const chatRoomDisplay = document.getElementById("chat-room");
   const userCount = document.getElementById("user-count");
 
-  let user = null;
-  let room = "main";
-  let roomRef, typingRef, usersRef, thisUserRef;
-  const adminEmail = "your-admin-email@gmail.com"; // ← replace with your email
-
-  // ✅ Show Auth screen after welcome
+  welcomeScreen.style.display = "flex";
   setTimeout(() => {
     welcomeScreen.style.display = "none";
     authScreen.style.display = "flex";
   }, 1500);
 
-  // ✅ Switch Login/Signup
+  // Switch Forms
   document.getElementById("show-signup").onclick = e => {
     e.preventDefault();
     loginForm.style.display = "none";
@@ -132,15 +132,35 @@
     loginForm.style.display = "block";
   };
 
+  // Anonymous
+  document.getElementById("guest-login").onclick = () => auth.signInAnonymously();
+
+  // Google Login
   document.getElementById("google-login").onclick = () => {
-    auth.signInWithPopup(provider).catch(err => alert(err.message));
+    auth.signInWithPopup(provider).catch(err => alert("Google Sign-in failed:\n" + err.message));
   };
 
-  document.getElementById("guest-login").onclick = () => {
-    auth.signInAnonymously().catch(err => alert("Guest login failed: " + err.message));
-  };
+  // Login Submit
+  loginForm.addEventListener("submit", e => {
+    e.preventDefault();
+    const email = document.getElementById("login-email").value;
+    const pass = document.getElementById("login-password").value;
+    auth.signInWithEmailAndPassword(email, pass)
+      .catch(err => document.getElementById("login-error").innerText = err.message);
+  });
 
-  // ✅ On Auth Change
+  // Signup Submit
+  signupForm.addEventListener("submit", e => {
+    e.preventDefault();
+    const name = document.getElementById("signup-name").value;
+    const email = document.getElementById("signup-email").value;
+    const pass = document.getElementById("signup-password").value;
+    auth.createUserWithEmailAndPassword(email, pass)
+      .then(cred => cred.user.updateProfile({ displayName: name }))
+      .catch(err => document.getElementById("signup-error").innerText = err.message);
+  });
+
+  // Auth listener
   auth.onAuthStateChanged(u => {
     if (u) {
       user = u;
@@ -154,29 +174,7 @@
     }
   });
 
-  // ✅ Login
-  loginForm.addEventListener("submit", e => {
-    e.preventDefault();
-    const email = document.getElementById("login-email").value;
-    const pass = document.getElementById("login-password").value;
-    auth.signInWithEmailAndPassword(email, pass)
-      .catch(error => {
-        document.getElementById("login-error").innerText = error.message;
-      });
-  });
-
-  // ✅ Signup
-  signupForm.addEventListener("submit", e => {
-    e.preventDefault();
-    const name = document.getElementById("signup-name").value;
-    const email = document.getElementById("signup-email").value;
-    const pass = document.getElementById("signup-password").value;
-    auth.createUserWithEmailAndPassword(email, pass)
-      .then(cred => cred.user.updateProfile({ displayName: name }))
-      .catch(error => document.getElementById("signup-error").innerText = error.message);
-  });
-
-  // ✅ Enter Chat Room
+  // Join Room
   document.getElementById("register-form").addEventListener("submit", e => {
     e.preventDefault();
     room = document.getElementById("reg-room").value || "main";
@@ -185,29 +183,28 @@
     chatRoomDisplay.innerText = `Room: ${room}`;
 
     roomRef = db.ref(`rooms/${room}/messages`);
-    usersRef = db.ref(`rooms/${room}/onlineUsers`);
+    usersRef = db.ref(`rooms/${room}/users`);
     typingRef = db.ref(`rooms/${room}/typing`);
     thisUserRef = usersRef.child(user.uid);
-
     thisUserRef.set(user.displayName || "Guest");
     thisUserRef.onDisconnect().remove();
 
-    roomRef.off();
     messages.innerHTML = "";
-
+    roomRef.off();
     roomRef.limitToLast(50).on("child_added", snap => {
       const msg = snap.val();
       const li = document.createElement("li");
       li.className = msg.system ? "system-msg" : "user-msg";
       li.innerHTML = msg.system ?
         `<em>${msg.message}</em>` :
-        `<strong>${msg.username}:</strong> ${msg.message} <span style="color:#aaa;font-size: 12px;">${msg.time}</span>`;
+        `<strong>${msg.username || "Guest"}:</strong> ${msg.message} <span style="font-size:12px; color:#aaa;">${msg.time}</span>`;
       messages.appendChild(li);
       messages.scrollTop = messages.scrollHeight;
     });
 
     usersRef.on("value", snap => {
-      userCount.textContent = snap.val() ? Object.keys(snap.val()).length : "0";
+      const online = snap.val();
+      userCount.textContent = online ? Object.keys(online).length : "0";
     });
 
     roomRef.push({
@@ -219,36 +216,34 @@
     clearChatBtn.style.display = (user.email === adminEmail) ? "inline-block" : "none";
   });
 
-  // ✅ Emoji Send
-  document.querySelectorAll(".emoji-button").forEach(btn => {
-    btn.onclick = () => {
-      const emoji = btn.dataset.emoji;
-      roomRef.push({
-        username: user.displayName || "Guest",
-        message: emoji,
-        time: getTime()
-      });
-      input.value = "";
-    };
-  });
-
-  // ✅ Text Message Send
+  // Send Message
   document.getElementById("form").addEventListener("submit", e => {
     e.preventDefault();
     const msg = input.value.trim();
     if (!msg) return;
+    sendMessage(msg);
+  });
+
+  document.querySelectorAll(".emoji-button").forEach(btn => {
+    btn.onclick = () => {
+      const emoji = btn.dataset.emoji;
+      sendMessage(emoji);
+    };
+  });
+
+  function sendMessage(msg) {
     roomRef.push({
       username: user.displayName || "Guest",
       message: msg,
       time: getTime()
     });
     input.value = "";
-  });
+  }
 
   leaveBtn.onclick = () => {
     roomRef.push({
       system: true,
-      message: `🚪 ${user.displayName || "Guest"} has left.`,
+      message: `🚪 ${user.displayName || "Guest"} left.`,
       time: getTime()
     });
     thisUserRef.remove();
@@ -257,16 +252,16 @@
   };
 
   clearChatBtn.onclick = () => {
-    if (confirm("Clear all messages?")) {
+    if (confirm("Clear this chat?")) {
       roomRef.remove();
       messages.innerHTML = "";
     }
   };
 
   themeToggle.onclick = () => {
-    const toggle = document.body.classList.toggle("dark");
-    themeToggle.textContent = toggle ? "🌙" : "🌞";
-    localStorage.setItem("dark-mode", toggle);
+    const dark = document.body.classList.toggle("dark");
+    localStorage.setItem("dark-mode", dark);
+    themeToggle.textContent = dark ? "🌙" : "🌞";
   };
 
   document.addEventListener("DOMContentLoaded", () => {
