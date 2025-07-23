@@ -1,4 +1,3 @@
-/* Base Styling */
 body, html {
   margin: 0;
   padding: 0;
@@ -8,31 +7,29 @@ body, html {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* Dark Mode */
-body.dark {
+.dark {
   background: #121212;
   color: #eee;
 }
 
-body.dark .chat-header {
+.dark .chat-header {
   background: #2a2a2a;
 }
 
-body.dark form,
-body.dark .system-msg,
-body.dark #messages li {
+.dark form,
+.dark .system-msg,
+.dark #messages li {
   background: #1e1e1e;
   color: #fff;
 }
 
-body.dark input,
-body.dark button {
+.dark input,
+.dark button {
   background: #333;
   color: #fff;
   border: 1px solid #555;
 }
 
-/* Welcome Screen */
 .welcome-screen {
   height: 100vh;
   background: linear-gradient(135deg, #4e54c8, #8f94fb);
@@ -41,7 +38,8 @@ body.dark button {
   justify-content: center;
   align-items: center;
   color: white;
-  animation: fadeIn 1s ease-in-out;
+  text-align: center;
+  animation: fadeIn 1.5s ease-in-out;
 }
 .welcome-screen h1 {
   font-size: 3rem;
@@ -52,7 +50,7 @@ body.dark button {
   opacity: 0.9;
 }
 
-/* App Screens */
+/* Screens styling */
 .auth-screen,
 .register-screen,
 .chat-screen {
@@ -60,44 +58,39 @@ body.dark button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 30px;
+  padding: 20px;
 }
 
-/* Auth Forms */
+/* Form styling */
 form {
-  background: #fff;
+  background: white;
   padding: 25px;
-  border-radius: 12px;
-  box-shadow: 0 0 15px rgba(0,0,0,0.1);
+  border-radius: 10px;
   margin: 10px;
-  width: 300px;
+  width: 320px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
 }
-form input,
-form button {
+
+input,
+button {
   width: 100%;
   padding: 12px;
-  margin-bottom: 12px;
-  font-size: 15px;
-  border: 1px solid #ccc;
+  margin-bottom: 10px;
+  font-size: 16px;
   border-radius: 6px;
-}
-form button {
-  background: #4e54c8;
-  color: white;
-  font-weight: bold;
-  cursor: pointer;
-}
-form button:hover {
-  background: #3b40b0;
-}
-form a {
-  color: #4e54c8;
-  text-decoration: none;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
 }
 
-#error {
-  color: red;
-  font-size: 0.9em;
+button {
+  background: #4e54c8;
+  color: white;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+button:hover {
+  background: #3b40b0;
 }
 
 /* Chat Header */
@@ -116,77 +109,114 @@ form a {
   gap: 10px;
   align-items: center;
 }
-.chat-controls button,
-#theme-toggle {
-  background: transparent;
-  color: white;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-}
 
 /* Messages */
 #messages {
   list-style: none;
   padding: 15px;
-  height: 300px;
-  overflow-y: scroll;
+  max-height: 320px;
+  overflow-y: auto;
   width: 90%;
   background: #fff;
   border-radius: 8px;
-  margin: 16px 0;
+  margin: 20px 0;
 }
+
 #messages li {
-  padding: 8px;
+  padding: 10px;
   margin-bottom: 8px;
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  position: relative;
+  word-wrap: break-word;
 }
+
 .system-msg {
   font-style: italic;
-  background: #fffbd1;
   color: #856404;
+  background: #fffbd1;
+}
+
+/* Reactions */
+.reactions {
+  margin-top: 8px;
+  display: flex;
+  gap: 10px;
+}
+
+.reaction-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  position: relative;
+  padding: 2px 8px;
+  border-radius: 14px;
+  user-select: none;
+}
+
+.reaction-btn:hover {
+  background: rgba(0,0,0,0.1);
+}
+
+.reaction-count {
+  font-size: 12px;
+  color: #666;
+  margin-left: 4px;
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #fff;
+  border-radius: 50%;
+  padding: 1px 5px;
 }
 
 /* Typing Indicator */
 #typing-indicator {
   font-style: italic;
-  color: #999;
   font-size: 14px;
+  color: #999;
   margin-bottom: 10px;
 }
 
-/* Chat Form */
-form#form {
-  width: 90%;
+/* Horizontal form */
+.horizontal-form {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
   gap: 10px;
+  align-items: center;
+  width: 90%;
+  margin: 0 auto 30px auto;
 }
-#input {
-  flex: 1;
+
+.horizontal-form #input {
+  flex-grow: 1;
+  font-size: 16px;
   padding: 12px;
-  font-size: 15px;
   border-radius: 6px;
   border: 1px solid #ccc;
 }
-.emoji-buttons button {
-  padding: 8px;
-  font-size: 16px;
-  background: transparent;
+
+.horizontal-form button {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  font-size: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #4e54c8;
+  color: white;
+  border-radius: 6px;
   border: none;
   cursor: pointer;
 }
 
-/* Google Button Overrides */
-#google-login {
-  background: #4285f4;
-  color: white;
-  border: none;
-}
-#google-login:hover {
-  background: #3367d6;
+.horizontal-form #send-button {
+  width: auto;
+  padding: 12px 20px;
+  font-size: 16px;
+  border-radius: 6px;
+  flex-grow: 0;
 }
 
 /* Animations */
