@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FireChat</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" />
 </head>
 <body>
 
@@ -27,6 +27,7 @@
     <p id="login-error" style="color:red;"></p>
     <p>Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
   </form>
+
   <form id="signup-form" style="display:none;">
     <h2>Sign Up</h2>
     <input type="text" id="signup-name" placeholder="Your Name" required />
@@ -63,6 +64,7 @@
   <div id="typing-indicator"></div>
   <ul id="messages"></ul>
 
+  <!-- Message input bar -->
   <form id="form" class="msg-bar">
     <input id="input" autocomplete="off" placeholder="Message..." />
     <button type="button" class="emoji-button" data-emoji="😊">😊</button>
@@ -119,6 +121,7 @@
     authScreen.style.display = "flex";
   }, 1500);
 
+  // Form togglers
   document.getElementById("show-signup").onclick = e => {
     e.preventDefault();
     loginForm.style.display = "none";
@@ -130,29 +133,17 @@
     loginForm.style.display = "block";
   };
 
-  document.getElementById("guest-login").onclick = () =>
-    auth.signInAnonymously().catch(e => alert("Guest login failed:\n" + e.message));
-  document.getElementById("google-login").onclick = () =>
+  // Google login
+  document.getElementById("google-login").onclick = () => {
     auth.signInWithPopup(provider).catch(e => alert("Google Sign-In failed:\n" + e.message));
+  };
 
-  loginForm.addEventListener("submit", e => {
-    e.preventDefault();
-    auth.signInWithEmailAndPassword(
-      document.getElementById("login-email").value,
-      document.getElementById("login-password").value
-    ).catch(e => { document.getElementById("login-error").innerText = e.message; });
-  });
+  // Guest login
+  document.getElementById("guest-login").onclick = () => {
+    auth.signInAnonymously().catch(e => alert("Guest login failed:\n" + e.message));
+  };
 
-  signupForm.addEventListener("submit", e => {
-    e.preventDefault();
-    const name = document.getElementById("signup-name").value;
-    const email = document.getElementById("signup-email").value;
-    const pass = document.getElementById("signup-password").value;
-    auth.createUserWithEmailAndPassword(email, pass)
-      .then(cred => cred.user.updateProfile({ displayName: name }))
-      .catch(e => document.getElementById("signup-error").innerText = e.message);
-  });
-
+  // Authentication state change
   auth.onAuthStateChanged(u => {
     if (u) {
       user = u;
@@ -166,18 +157,47 @@
     }
   });
 
+  // Login form submit handler
+  loginForm.addEventListener("submit", e => {
+    e.preventDefault();
+    const email = document.getElementById("login-email").value;
+    const pass = document.getElementById("login-password").value;
+    auth.signInWithEmailAndPassword(email, pass)
+      .catch(e => document.getElementById("login-error").innerText = e.message);
+  });
+
+  // Signup form submit handler
+  signupForm.addEventListener("submit", e => {
+    e.preventDefault();
+    const name = document.getElementById("signup-name").value;
+    const email = document.getElementById("signup-email").value;
+    const pass = document.getElementById("signup-password").value;
+    auth.createUserWithEmailAndPassword(email, pass)
+      .then(cred => cred.user.updateProfile({ displayName: name }))
+      .catch(e => document.getElementById("signup-error").innerText = e.message);
+  });
+
+  // Join chat room form submission
   registerScreen.querySelector("form").addEventListener("submit", e => {
     e.preventDefault();
     room = document.getElementById("reg-room").value.trim().toLowerCase() || "main";
     registerScreen.style.display = "none";
     chatScreen.style.display = "flex";
+
     chatRoomDisplay.textContent = `Room: ${room}`;
 
     roomRef = db.ref(`rooms/${room}/messages`);
     typingRef = db.ref(`rooms/${room}/typing`);
     usersRef = db.ref(`rooms/${room}/onlineUsers`);
     thisUserRef = usersRef.child(user.uid);
-    thisUserRef.set(user.displayName || user.email || "Guest");
+
+    // Detect if user is admin for display and control
+    const isAdmin = user.email && user.email.toLowerCase() === adminEmail.toLowerCase();
+    const displayName = isAdmin
+      ? (user.displayName ? `${user.displayName} (Admin)` : `${user.email} (Admin)`)
+      : (user.displayName || user.email || "Guest");
+
+    thisUserRef.set(displayName);
     thisUserRef.onDisconnect().remove();
 
     messages.innerHTML = "";
@@ -186,9 +206,9 @@
       const msg = snap.val();
       const li = document.createElement("li");
       li.className = msg.system ? "system-msg" : "user-msg";
-      li.innerHTML = msg.system ?
-        `<em>${msg.message}</em>` :
-        `<strong>${msg.username}:</strong> ${msg.message} <span style="color:#aaa;font-size:0.8em;">${msg.time}</span>`;
+      li.innerHTML = msg.system
+        ? `<em>${msg.message}</em>`
+        : `<strong>${msg.username}:</strong> ${msg.message} <span style="color:#aaa; font-size:0.8em;">${msg.time}</span>`;
       messages.appendChild(li);
       messages.scrollTop = messages.scrollHeight;
     });
@@ -203,12 +223,18 @@
       roomRef.push({ system: true, message: `🚪 ${leftUser} left.`, time: getTime() });
     });
 
-    roomRef.push({ system: true, message: `🔔 ${user.displayName || user.email || "Guest"} joined.`, time: getTime() });
+    roomRef.push({
+      system: true,
+      message: isAdmin
+        ? `${displayName} joined as Admin.`
+        : `${displayName} joined.`,
+      time: getTime()
+    });
 
-    // Admin controls: show clearChat only for admin (even if Google login)
-    clearChatBtn.style.display = ((user.email && user.email.toLowerCase() === adminEmail.toLowerCase())) ? "inline-block" : "none";
+    clearChatBtn.style.display = isAdmin ? "inline-block" : "none";
   });
 
+  // Send message form submit handler
   document.getElementById("form").addEventListener("submit", e => {
     e.preventDefault();
     const msg = input.value.trim();
@@ -216,6 +242,7 @@
     sendMessage(msg);
   });
 
+  // Emoji buttons instant send
   document.querySelectorAll(".emoji-button").forEach(btn => {
     btn.onclick = () => sendMessage(btn.dataset.emoji);
   });
@@ -230,6 +257,15 @@
     typingRef.set(null);
   }
 
+  // Typing indicator
+  input.addEventListener("input", () => {
+    typingRef.set(user.displayName || user.email || "Guest");
+    setTimeout(() => {
+      if (!input.value) typingRef.set(null);
+    }, 1000);
+  });
+
+  // Leave room button
   leaveBtn.onclick = () => {
     roomRef.push({ system: true, message: `🚪 ${user.displayName || user.email || "Guest"} left.`, time: getTime() });
     thisUserRef.remove();
@@ -237,33 +273,40 @@
     registerScreen.style.display = "flex";
   };
 
+  // Logout button
+  const logoutBtn = document.getElementById("logout-btn");
   logoutBtn.onclick = () => {
     if (thisUserRef) thisUserRef.remove();
     auth.signOut().then(() => {
       chatScreen.style.display = "none";
       registerScreen.style.display = "none";
       authScreen.style.display = "flex";
-    }).catch(err => alert("Logout failed: " + err.message));
+    }).catch(e => alert("Logout failed: " + e.message));
   };
 
+  // Clear chat button (admin only)
   clearChatBtn.onclick = () => {
-    if (confirm("Clear chat for this room?")) {
+    if (confirm("Clear this room's chat?")) {
       roomRef.remove();
       messages.innerHTML = "";
     }
   };
 
+  // Theme toggle
   themeToggle.onclick = () => {
-    const dark = document.body.classList.toggle("dark");
-    localStorage.setItem("dark-mode", dark);
-    themeToggle.textContent = dark ? "🌙" : "🌞";
+    const isDark = document.body.classList.toggle("dark");
+    themeToggle.textContent = isDark ? "🌙" : "🌞";
+    localStorage.setItem("dark-mode", isDark);
   };
+
+  // Load last theme on startup
   document.addEventListener("DOMContentLoaded", () => {
-    const dark = localStorage.getItem("dark-mode") === "true";
-    document.body.classList.toggle("dark", dark);
-    themeToggle.textContent = dark ? "🌙" : "🌞";
+    const darkMode = localStorage.getItem("dark-mode") === "true";
+    document.body.classList.toggle("dark", darkMode);
+    themeToggle.textContent = darkMode ? "🌙" : "🌞";
   });
 
+  // Helper to get current time string HH:MM
   function getTime() {
     return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
