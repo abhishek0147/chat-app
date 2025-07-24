@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<!-- 💬 Welcome -->
+<!-- 🌟 Welcome -->
 <div class="welcome-screen">
   <h1>💬 Welcome to FireChat</h1>
   <p>Super fast & secure real-time messaging.</p>
@@ -55,15 +55,16 @@
       📍 <strong id="chat-room"></strong> | 👥 <span id="user-count">0</span> Online
     </div>
     <div class="chat-controls">
-      <span id="theme-toggle">🌞</span>
+      <span id="theme-toggle" title="Toggle Theme">🌞</span>
       <button id="clear-chat" style="display:none;">🗑️ Clear</button>
       <button id="leave-btn">🚪 Leave</button>
+      <button id="logout-btn" title="Logout">🔓 Logout</button>
     </div>
   </div>
   <div id="typing-indicator"></div>
   <ul id="messages"></ul>
 
-  <!-- Chat Input -->
+  <!-- Message input bar -->
   <form id="form" class="msg-bar">
     <input id="input" autocomplete="off" placeholder="Message..." />
     <button type="button" class="emoji-button" data-emoji="😊">😊</button>
@@ -73,12 +74,11 @@
   </form>
 </div>
 
-<!-- Firebase -->
+<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<!-- 🔥 App Logic -->
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyC2CgKMqAqIc2_LsmLv7h9SeGH_P3iY3Lw",
@@ -108,19 +108,21 @@
   const chatScreen = document.querySelector(".chat-screen");
   const input = document.getElementById("input");
   const messages = document.getElementById("messages");
-  const themeToggle = document.getElementById("theme-toggle");
-  const leaveBtn = document.getElementById("leave-btn");
-  const clearChatBtn = document.getElementById("clear-chat");
   const chatRoomDisplay = document.getElementById("chat-room");
+  const typingIndicator = document.getElementById("typing-indicator");
   const userCount = document.getElementById("user-count");
+  const themeToggle = document.getElementById("theme-toggle");
+  const clearChatBtn = document.getElementById("clear-chat");
+  const leaveBtn = document.getElementById("leave-btn");
+  const logoutBtn = document.getElementById("logout-btn");
 
-  welcomeScreen.style.display = "flex";
+  // Show welcome then auth screen
   setTimeout(() => {
     welcomeScreen.style.display = "none";
     authScreen.style.display = "flex";
   }, 1500);
 
-  // Switch Forms
+  // Toggle between login/signup forms
   document.getElementById("show-signup").onclick = e => {
     e.preventDefault();
     loginForm.style.display = "none";
@@ -132,35 +134,17 @@
     loginForm.style.display = "block";
   };
 
-  // Anonymous
-  document.getElementById("guest-login").onclick = () => auth.signInAnonymously();
-
-  // Google Login
+  // Google login
   document.getElementById("google-login").onclick = () => {
-    auth.signInWithPopup(provider).catch(err => alert("Google Sign-in failed:\n" + err.message));
+    auth.signInWithPopup(provider).catch(e => alert("Google Sign-In failed:\n" + e.message));
   };
 
-  // Login Submit
-  loginForm.addEventListener("submit", e => {
-    e.preventDefault();
-    const email = document.getElementById("login-email").value;
-    const pass = document.getElementById("login-password").value;
-    auth.signInWithEmailAndPassword(email, pass)
-      .catch(err => document.getElementById("login-error").innerText = err.message);
-  });
+  // Guest login
+  document.getElementById("guest-login").onclick = () => {
+    auth.signInAnonymously().catch(e => alert("Guest login failed:\n" + e.message));
+  };
 
-  // Signup Submit
-  signupForm.addEventListener("submit", e => {
-    e.preventDefault();
-    const name = document.getElementById("signup-name").value;
-    const email = document.getElementById("signup-email").value;
-    const pass = document.getElementById("signup-password").value;
-    auth.createUserWithEmailAndPassword(email, pass)
-      .then(cred => cred.user.updateProfile({ displayName: name }))
-      .catch(err => document.getElementById("signup-error").innerText = err.message);
-  });
-
-  // Auth listener
+  // Listen for auth state changes
   auth.onAuthStateChanged(u => {
     if (u) {
       user = u;
@@ -174,18 +158,42 @@
     }
   });
 
-  // Join Room
-  document.getElementById("register-form").addEventListener("submit", e => {
+  // Login form submit
+  loginForm.addEventListener("submit", e => {
     e.preventDefault();
-    room = document.getElementById("reg-room").value || "main";
+    const email = document.getElementById("login-email").value;
+    const pass = document.getElementById("login-password").value;
+    auth.signInWithEmailAndPassword(email, pass).catch(e => {
+      document.getElementById("login-error").innerText = e.message;
+    });
+  });
+
+  // Signup form submit
+  signupForm.addEventListener("submit", e => {
+    e.preventDefault();
+    const name = document.getElementById("signup-name").value;
+    const email = document.getElementById("signup-email").value;
+    const pass = document.getElementById("signup-password").value;
+    auth.createUserWithEmailAndPassword(email, pass).then(cred => {
+      return cred.user.updateProfile({ displayName: name });
+    }).catch(e => {
+      document.getElementById("signup-error").innerText = e.message;
+    });
+  });
+
+  // Join room form submit
+  registerScreen.querySelector("form").addEventListener("submit", e => {
+    e.preventDefault();
+    room = document.getElementById("reg-room").value.trim().toLowerCase() || "main";
     registerScreen.style.display = "none";
     chatScreen.style.display = "flex";
-    chatRoomDisplay.innerText = `Room: ${room}`;
+    chatRoomDisplay.textContent = `Room: ${room}`;
 
     roomRef = db.ref(`rooms/${room}/messages`);
-    usersRef = db.ref(`rooms/${room}/users`);
     typingRef = db.ref(`rooms/${room}/typing`);
+    usersRef = db.ref(`rooms/${room}/onlineUsers`);
     thisUserRef = usersRef.child(user.uid);
+
     thisUserRef.set(user.displayName || "Guest");
     thisUserRef.onDisconnect().remove();
 
@@ -197,85 +205,110 @@
       li.className = msg.system ? "system-msg" : "user-msg";
       li.innerHTML = msg.system ?
         `<em>${msg.message}</em>` :
-        `<strong>${msg.username || "Guest"}:</strong> ${msg.message} <span style="font-size:12px; color:#aaa;">${msg.time}</span>`;
+        `<strong>${msg.username}:</strong> ${msg.message} <span style="color:#aaa; font-size:0.8em;">${msg.time}</span>`;
       messages.appendChild(li);
       messages.scrollTop = messages.scrollHeight;
     });
 
     usersRef.on("value", snap => {
-      const online = snap.val();
-      userCount.textContent = online ? Object.keys(online).length : "0";
+      const onlineUsers = snap.val();
+      userCount.textContent = onlineUsers ? Object.keys(onlineUsers).length : 0;
     });
 
-    roomRef.push({
-      system: true,
-      message: `🔔 ${user.displayName || "Guest"} joined.`,
-      time: getTime()
+    usersRef.on("child_removed", snap => {
+      const leftUser = snap.val();
+      roomRef.push({ system: true, message: `🚪 ${leftUser} left.`, time: getTime() });
     });
+
+    roomRef.push({ system: true, message: `🔔 ${user.displayName || "Guest"} joined.`, time: getTime() });
 
     clearChatBtn.style.display = (user.email === adminEmail) ? "inline-block" : "none";
   });
 
-  // Send Message
+  // Send message form submit
   document.getElementById("form").addEventListener("submit", e => {
     e.preventDefault();
     const msg = input.value.trim();
     if (!msg) return;
-    sendMessage(msg);
-  });
-
-  document.querySelectorAll(".emoji-button").forEach(btn => {
-    btn.onclick = () => {
-      const emoji = btn.dataset.emoji;
-      sendMessage(emoji);
-    };
-  });
-
-  function sendMessage(msg) {
     roomRef.push({
       username: user.displayName || "Guest",
       message: msg,
       time: getTime()
     });
     input.value = "";
-  }
+    typingRef.set(null);
+  });
 
+  // Emoji buttons instant send
+  document.querySelectorAll(".emoji-button").forEach(btn => {
+    btn.onclick = () => {
+      const emoji = btn.dataset.emoji;
+      roomRef.push({
+        username: user.displayName || "Guest",
+        message: emoji,
+        time: getTime()
+      });
+      input.value = "";
+      typingRef.set(null);
+    };
+  });
+
+  // Typing indicator input
+  input.addEventListener("input", () => {
+    typingRef.set(user.displayName || "Guest");
+    setTimeout(() => {
+      if (!input.value) typingRef.set(null);
+    }, 1000);
+  });
+
+  // Leave room button
   leaveBtn.onclick = () => {
-    roomRef.push({
-      system: true,
-      message: `🚪 ${user.displayName || "Guest"} left.`,
-      time: getTime()
-    });
+    roomRef.push({ system: true, message: `🚪 ${user.displayName || "Guest"} left.`, time: getTime() });
     thisUserRef.remove();
     chatScreen.style.display = "none";
     registerScreen.style.display = "flex";
   };
 
+  // Logout button ⬅ ADDED HERE
+  logoutBtn.onclick = () => {
+    // Remove presence from current room
+    if (thisUserRef) thisUserRef.remove();
+    auth.signOut().then(() => {
+      chatScreen.style.display = "none";
+      registerScreen.style.display = "none";
+      authScreen.style.display = "flex";
+    }).catch(err => {
+      alert("Logout failed: " + err.message);
+    });
+  };
+
+  // Clear chat (admin only)
   clearChatBtn.onclick = () => {
-    if (confirm("Clear this chat?")) {
+    if (confirm("Clear chat for this room?")) {
       roomRef.remove();
       messages.innerHTML = "";
     }
   };
 
+  // Theme toggle button
   themeToggle.onclick = () => {
     const dark = document.body.classList.toggle("dark");
     localStorage.setItem("dark-mode", dark);
     themeToggle.textContent = dark ? "🌙" : "🌞";
   };
 
+  // Load last theme
   document.addEventListener("DOMContentLoaded", () => {
     const dark = localStorage.getItem("dark-mode") === "true";
     document.body.classList.toggle("dark", dark);
     themeToggle.textContent = dark ? "🌙" : "🌞";
   });
 
+  // Helper - get current time HH:MM format
   function getTime() {
-    return new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
+    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 </script>
+
 </body>
 </html>
