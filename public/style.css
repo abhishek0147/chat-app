@@ -4,7 +4,7 @@ body, html {
   font-family: 'Poppins', sans-serif;
   background: #f7f8fc;
   color: #333;
-  transition: background 0.3s ease, color 0.3s ease;
+  transition: background 0.3s, color 0.3s;
 }
 .dark {
   background: #121212;
@@ -20,22 +20,13 @@ body, html {
   align-items: center;
   color: white;
   text-align: center;
-  animation: fadeIn 1.5s ease-in-out;
+  animation: fadeIn 1.5s;
 }
-.welcome-screen h1 {
-  font-size: 3rem;
-  font-weight: 600;
-  margin: 0;
-}
-.welcome-screen p {
-  font-size: 1.2rem;
-  opacity: 0.96;
-}
+.welcome-screen h1 { font-size: 3rem; font-weight: 600; margin: 0; }
+.welcome-screen p { font-size: 1.2rem; opacity: 0.96; }
 
-/* Screens styling */
-.auth-screen,
-.register-screen,
-.chat-screen {
+/* ... other style rules are unchanged ... */
+.auth-screen, .register-screen, .chat-screen {
   display: none;
   flex-direction: column;
   align-items: center;
@@ -44,8 +35,6 @@ body, html {
   width: 100vw;
   box-sizing: border-box;
 }
-
-/* Form styling */
 form {
   background: #fff;
   padding: 24px;
@@ -74,17 +63,9 @@ button {
   cursor: pointer;
   transition: background 0.18s;
 }
-button:hover {
-  background: #323a8f;
-}
-#google-login {
-  background: #4285f4 !important;
-  color: white;
-  margin-bottom: 3px;
-}
-#google-login:hover {
-  background: #3367d6 !important;
-}
+button:hover { background: #323a8f; }
+#google-login { background: #4285f4 !important; color: white; margin-bottom: 3px; }
+#google-login:hover { background: #3367d6 !important; }
 
 .chat-header {
   width: 100%;
@@ -98,10 +79,7 @@ button:hover {
   font-size: 1.18rem;
   font-weight: 500;
 }
-.dark .chat-header {
-  background: #2a2a2a;
-}
-
+.dark .chat-header { background: #2a2a2a; }
 .chat-controls span,
 .chat-controls button {
   background: none !important;
@@ -110,7 +88,6 @@ button:hover {
   font-size: 20px;
   cursor: pointer;
 }
-
 #messages {
   list-style: none;
   padding: 12px;
@@ -123,9 +100,7 @@ button:hover {
   box-sizing: border-box;
   box-shadow: 0px 6px 12px rgba(80,80,94,0.045);
 }
-.dark #messages {
-  background: #232428;
-}
+.dark #messages { background: #232428; }
 #messages li {
   padding: 10px 10px 7px 10px;
   margin-bottom: 6px;
@@ -135,16 +110,8 @@ button:hover {
   font-size: 1.05rem;
   letter-spacing: 0.01em;
 }
-.dark #messages li {
-  background: #232a35;
-}
-.system-msg {
-  font-style: italic;
-  color: #856415;
-  background: #fffbd1 !important;
-}
-
-/* Typing indicator */
+.dark #messages li { background: #232a35; }
+.system-msg { font-style: italic; color: #856415; background: #fffbd1 !important; }
 #typing-indicator {
   font-style: italic;
   font-size: 15px;
@@ -152,7 +119,7 @@ button:hover {
   margin-top: 0;
 }
 
-/* Fixed Bottom Message Bar */
+/* Bottom message bar - wider input */
 .msg-bar {
   position: fixed;
   bottom: 0;
@@ -162,7 +129,7 @@ button:hover {
   display: flex;
   align-items: center;
   padding: 12px 10px;
-  gap: 8px;
+  gap: 10px;
   box-shadow: 0 -2px 18px rgba(40,40,100,0.09);
   z-index: 10;
 }
@@ -170,15 +137,16 @@ body.dark .msg-bar {
   background: #181a1b;
   box-shadow: 0 -2px 20px #000;
 }
-
 .msg-bar input {
-  flex: 1;
-  padding: 12px;
-  font-size: 16px;
-  border-radius: 7px;
-  border: 1px solid #ccc;
+  flex: 3 0 350px;  /* wider! */
+  min-width: 150px;
+  max-width: 650px;
+  padding: 13px 18px;
+  font-size: 18px;
+  border-radius: 9px;
+  border: 1.5px solid #bbb;
+  margin-right: 4px;
 }
-
 .msg-bar button.emoji-button {
   font-size: 22px;
   background: transparent;
@@ -193,30 +161,29 @@ body.dark .msg-bar {
   justify-content: center;
 }
 .msg-bar button.emoji-button:hover {
-  background: #f2f5ff;
+  background: #f1f3fa;
 }
 body.dark .msg-bar button.emoji-button:hover {
-  background: #242833;
+  background: #292d32;
 }
-
-.msg-bar #send-button {
+.msg-bar #send-button, .msg-bar button[type="submit"] {
   background: #4e54c8;
   color: #fff;
   font-size: 16px;
   border-radius: 6px;
-  padding: 0 20px;
-  font-weight: 700;
+  padding: 0 22px;
+  font-weight: bold;
   height: 40px;
   border: none;
   cursor: pointer;
-  transition: background 0.17s;
+  transition: background 0.2s;
+  min-width: 66px;
 }
-.msg-bar #send-button:hover {
+.msg-bar #send-button:hover,
+.msg-bar button[type="submit"]:hover {
   background: #343bb4;
 }
-#messages {
-  margin-bottom: 65px;
-}
+#messages { margin-bottom: 74px; }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(32px); }
