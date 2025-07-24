@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FireChat</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap"/>
 </head>
 <body>
 
 <!-- 💬 Welcome -->
-<div class="welcome-screen">
+<div class="welcome-screen" style="display:flex;">
   <h1>💬 Welcome to FireChat</h1>
   <p>Super fast & secure real-time messaging.</p>
 </div>
 
 <!-- 🔐 Login & Signup -->
-<div class="auth-screen">
+<div class="auth-screen" style="display:none;">
   <form id="login-form">
     <h2>Login</h2>
     <input type="email" id="login-email" placeholder="Email" required />
@@ -63,8 +63,6 @@
   </div>
   <div id="typing-indicator"></div>
   <ul id="messages"></ul>
-
-  <!-- Message input bar -->
   <form id="form" class="msg-bar">
     <input id="input" autocomplete="off" placeholder="Message..." />
     <button type="button" class="emoji-button" data-emoji="😊">😊</button>
@@ -78,8 +76,8 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
 <script>
+  // Firebase initialization
   const firebaseConfig = {
     apiKey: "AIzaSyC2CgKMqAqIc2_LsmLv7h9SeGH_P3iY3Lw",
     authDomain: "chat-app-b8150.firebaseapp.com",
@@ -116,57 +114,31 @@
   const leaveBtn = document.getElementById("leave-btn");
   const logoutBtn = document.getElementById("logout-btn");
 
-  setTimeout(() => {
-    welcomeScreen.style.display = "none";
-    authScreen.style.display = "flex";
-  }, 1500);
+  // Welcome → Auth
+  setTimeout(() => switchScreen("welcome", "auth"), 1500);
 
-  // Form togglers
+  // Switch form links
   document.getElementById("show-signup").onclick = e => {
-    e.preventDefault();
-    loginForm.style.display = "none";
-    signupForm.style.display = "block";
+    e.preventDefault(); loginForm.style.display = "none"; signupForm.style.display = "block";
   };
   document.getElementById("show-login").onclick = e => {
-    e.preventDefault();
-    signupForm.style.display = "none";
-    loginForm.style.display = "block";
+    e.preventDefault(); signupForm.style.display = "none"; loginForm.style.display = "block";
   };
 
-  // Google login
-  document.getElementById("google-login").onclick = () => {
-    auth.signInWithPopup(provider).catch(e => alert("Google Sign-In failed:\n" + e.message));
-  };
-
-  // Guest login
-  document.getElementById("guest-login").onclick = () => {
+  // Google and Guest login
+  document.getElementById("guest-login").onclick = () =>
     auth.signInAnonymously().catch(e => alert("Guest login failed:\n" + e.message));
-  };
+  document.getElementById("google-login").onclick = () =>
+    auth.signInWithPopup(provider).catch(e => alert("Google Sign-In failed:\n" + e.message));
 
-  // Authentication state change
-  auth.onAuthStateChanged(u => {
-    if (u) {
-      user = u;
-      authScreen.style.display = "none";
-      registerScreen.style.display = "flex";
-    } else {
-      user = null;
-      authScreen.style.display = "flex";
-      registerScreen.style.display = "none";
-      chatScreen.style.display = "none";
-    }
-  });
-
-  // Login form submit handler
   loginForm.addEventListener("submit", e => {
     e.preventDefault();
-    const email = document.getElementById("login-email").value;
-    const pass = document.getElementById("login-password").value;
-    auth.signInWithEmailAndPassword(email, pass)
-      .catch(e => document.getElementById("login-error").innerText = e.message);
+    auth.signInWithEmailAndPassword(
+      document.getElementById("login-email").value,
+      document.getElementById("login-password").value
+    ).catch(e => { document.getElementById("login-error").innerText = e.message; });
   });
 
-  // Signup form submit handler
   signupForm.addEventListener("submit", e => {
     e.preventDefault();
     const name = document.getElementById("signup-name").value;
@@ -177,13 +149,20 @@
       .catch(e => document.getElementById("signup-error").innerText = e.message);
   });
 
-  // Join chat room form submission
+  auth.onAuthStateChanged(u => {
+    if (u) {
+      user = u;
+      switchScreen("auth", "register");
+    } else {
+      switchScreen(null, "auth");
+    }
+  });
+
+  // Join Room
   registerScreen.querySelector("form").addEventListener("submit", e => {
     e.preventDefault();
     room = document.getElementById("reg-room").value.trim().toLowerCase() || "main";
-    registerScreen.style.display = "none";
-    chatScreen.style.display = "flex";
-
+    switchScreen("register", "chat");
     chatRoomDisplay.textContent = `Room: ${room}`;
 
     roomRef = db.ref(`rooms/${room}/messages`);
@@ -191,8 +170,7 @@
     usersRef = db.ref(`rooms/${room}/onlineUsers`);
     thisUserRef = usersRef.child(user.uid);
 
-    // Detect if user is admin for display and control
-    const isAdmin = user.email && user.email.toLowerCase() === adminEmail.toLowerCase();
+    const isAdmin = !!(user.email && user.email.toLowerCase() === adminEmail.toLowerCase());
     const displayName = isAdmin
       ? (user.displayName ? `${user.displayName} (Admin)` : `${user.email} (Admin)`)
       : (user.displayName || user.email || "Guest");
@@ -226,65 +204,49 @@
     roomRef.push({
       system: true,
       message: isAdmin
-        ? `${displayName} joined as Admin.`
-        : `${displayName} joined.`,
+        ? `🔔 ${displayName} joined as Admin.`
+        : `🔔 ${displayName} joined.`,
       time: getTime()
     });
 
     clearChatBtn.style.display = isAdmin ? "inline-block" : "none";
   });
 
-  // Send message form submit handler
+  // Send Message (form or emoji)
   document.getElementById("form").addEventListener("submit", e => {
     e.preventDefault();
     const msg = input.value.trim();
     if (!msg) return;
     sendMessage(msg);
   });
-
-  // Emoji buttons instant send
   document.querySelectorAll(".emoji-button").forEach(btn => {
     btn.onclick = () => sendMessage(btn.dataset.emoji);
   });
-
   function sendMessage(msg) {
+    if (!roomRef) return;
     roomRef.push({
       username: user.displayName || user.email || "Guest",
       message: msg,
       time: getTime()
-    });
-    input.value = "";
-    typingRef.set(null);
+    }); input.value = ""; typingRef.set(null);
   }
 
   // Typing indicator
   input.addEventListener("input", () => {
     typingRef.set(user.displayName || user.email || "Guest");
-    setTimeout(() => {
-      if (!input.value) typingRef.set(null);
-    }, 1000);
+    setTimeout(() => { if (!input.value) typingRef.set(null); }, 1000);
   });
 
-  // Leave room button
   leaveBtn.onclick = () => {
     roomRef.push({ system: true, message: `🚪 ${user.displayName || user.email || "Guest"} left.`, time: getTime() });
     thisUserRef.remove();
-    chatScreen.style.display = "none";
-    registerScreen.style.display = "flex";
+    switchScreen("chat", "register");
   };
-
-  // Logout button
-  const logoutBtn = document.getElementById("logout-btn");
   logoutBtn.onclick = () => {
     if (thisUserRef) thisUserRef.remove();
-    auth.signOut().then(() => {
-      chatScreen.style.display = "none";
-      registerScreen.style.display = "none";
-      authScreen.style.display = "flex";
-    }).catch(e => alert("Logout failed: " + e.message));
+    auth.signOut().then(() => switchScreen("chat", "auth"))
+    .catch(e => alert("Logout failed: " + e.message));
   };
-
-  // Clear chat button (admin only)
   clearChatBtn.onclick = () => {
     if (confirm("Clear this room's chat?")) {
       roomRef.remove();
@@ -292,21 +254,22 @@
     }
   };
 
-  // Theme toggle
   themeToggle.onclick = () => {
     const isDark = document.body.classList.toggle("dark");
     themeToggle.textContent = isDark ? "🌙" : "🌞";
     localStorage.setItem("dark-mode", isDark);
   };
 
-  // Load last theme on startup
   document.addEventListener("DOMContentLoaded", () => {
     const darkMode = localStorage.getItem("dark-mode") === "true";
     document.body.classList.toggle("dark", darkMode);
     themeToggle.textContent = darkMode ? "🌙" : "🌞";
   });
 
-  // Helper to get current time string HH:MM
+  function switchScreen(hide, show) {
+    if (hide) { document.querySelector(`.${hide}-screen`).style.display = "none"; }
+    if (show) { document.querySelector(`.${show}-screen`).style.display = "flex"; }
+  }
   function getTime() {
     return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
