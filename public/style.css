@@ -1,6 +1,5 @@
 body, html {
-  margin: 0;
-  padding: 0;
+  margin: 0; padding: 0;
   font-family: 'Poppins', sans-serif;
   background: #f7f8fc;
   color: #333;
@@ -19,7 +18,7 @@ body, html {
   align-items: center;
   color: white;
   text-align: center;
-  animation: fadeIn 1.5s;
+  animation: fadeIn 1.5s ease-in-out;
 }
 .welcome-screen h1 { font-size: 3rem; font-weight: 600; margin: 0; }
 .welcome-screen p { font-size: 1.2rem; opacity: 0.96; }
@@ -59,7 +58,7 @@ button {
   transition: background 0.18s;
 }
 button:hover { background: #323a8f; }
-#google-login { background: #4285f4 !important; color: white; margin-bottom: 3px; }
+#google-login { background: #4285f4 !important; color: white;margin-bottom: 3px; }
 #google-login:hover { background: #3367d6 !important; }
 .chat-header {
   width: 100%;
@@ -67,7 +66,6 @@ button:hover { background: #323a8f; }
   color: white;
   padding: 16px;
   display: flex;
-  box-sizing: border-box;
   justify-content: space-between;
   align-items: center;
   font-size: 1.18rem;
@@ -116,9 +114,7 @@ button:hover { background: #323a8f; }
 /* Fixed Bottom Message Bar */
 .msg-bar {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100vw;
+  bottom: 0; left: 0; width: 100vw;
   background: #fff;
   display: flex;
   align-items: center;
@@ -128,7 +124,7 @@ button:hover { background: #323a8f; }
   z-index: 10;
 }
 body.dark .msg-bar {
-  background: #181a1b !important; /* Ensure black in dark mode */
+  background: #181a1b !important;
   box-shadow: 0 -2px 20px #000;
 }
 .msg-bar input {
@@ -145,7 +141,7 @@ body.dark .msg-bar {
 }
 body.dark .msg-bar input {
   background: #222 !important;
-  color: #fff;
+  color: #fff !important;
   border: 1.5px solid #444;
 }
 .msg-bar button.emoji-button {
